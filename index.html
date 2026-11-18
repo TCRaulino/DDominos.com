@@ -5,9 +5,9 @@
 :root[data-theme="dark"]{--bg:#17181a;--fg:#ece9e6;--mut:#9a998f;--card:#232527;--bd:#3a3d40;--ac:#4cc3a4;--bad:#ef8b73;--tile:#2d3033}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
-main{max-width:820px;margin:0 auto;padding:14px}
-h1{font-size:20px;margin:0 0 4px}.mut{color:var(--mut);font-size:14px}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin:10px 0}
+main{max-width:900px;margin:0 auto;padding:8px 10px}
+h1{font-size:17px;margin:0 0 2px}.mut{color:var(--mut);font-size:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:8px 12px;margin:6px 0}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 button,select{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 12px}
 button.p{background:var(--ac);color:#fff;border-color:var(--ac)}
@@ -17,7 +17,18 @@ button.p{background:var(--ac);color:#fff;border-color:var(--ac)}
 .stage .t{position:absolute;box-sizing:border-box;margin:0}.stage .t.last{outline:3px solid #f5c542}
 .stage .f{flex:1;width:auto;height:auto;padding:3px;box-sizing:border-box}.stage .f u{width:7px;height:7px}
 .stage .t i{margin:4px 0}.stage .t.v i{margin:0 4px}
-.tm2{text-align:center;color:var(--mut);font-size:14px;margin-top:10px}
+.play{--tb:min(calc(100vw - 140px),calc(100svh - 310px),620px);display:grid;grid-template-columns:62px var(--tb) 62px;grid-template-rows:auto var(--tb);justify-content:center;align-items:center;gap:6px}
+.play .sq{grid-column:2;grid-row:2;width:var(--tb);height:var(--tb);max-width:none;aspect-ratio:auto;margin:0}
+.sp{text-align:center;border-radius:10px;padding:4px;font-size:12px}.sp.on{outline:2px solid var(--ac)}
+.sp.top{grid-column:2;grid-row:1}.sp.left{grid-column:1;grid-row:2}.sp.right{grid-column:3;grid-row:2}
+.sp.left .bks,.sp.right .bks{display:flex;flex-direction:column;align-items:center}
+.sp.left .bk,.sp.right .bk{width:24px;height:11px}
+.hd{grid-column:1/-1;margin:2px 0}
+.ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#0008;color:#fff;text-align:center}
+.ov b{font-size:clamp(16px,3vw,22px)}
+.ov button{min-width:min(70%,240px);padding:14px 18px;font-size:18px;animation:pl 1.8s ease-in-out infinite}
+.ov small{display:block;font-weight:400;font-size:12px;opacity:.9}
+@keyframes pl{50%{transform:scale(1.05)}}
 .tm{color:#d8efe2;font-size:14px;text-align:center}
 
 .t{display:inline-flex;align-items:stretch;background:#fffdf2;border-radius:8px;border:1px solid #bdb8a6;box-shadow:0 2px 3px #0005;color:#1d1d1b}
@@ -25,7 +36,7 @@ button.p{background:var(--ac);color:#fff;border-color:var(--ac)}
 .f{display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);width:38px;height:38px;padding:4px;box-sizing:content-box}
 .f u{width:8px;height:8px;border-radius:50%;background:#1d1d1b;place-self:center;box-shadow:inset 0 -1px 1px #fff6}
 .t i{width:2px;background:#9a947f;margin:5px 0}.t.v i{width:auto;height:2px;margin:0 5px}
-.t.h{cursor:pointer;margin:6px 4px 2px}.t.h .f{width:42px;height:42px}.t.h u{width:10px;height:10px}
+.t.h{cursor:pointer;margin:6px 3px 2px}.t.h .f{width:26px;height:26px}.t.h u{width:8px;height:8px}
 .t.h.ok{outline:3px solid #f5c542;transform:translateY(-8px)}.t.h:not(.ok){opacity:.5}
 .bk{display:inline-block;width:14px;height:26px;margin:1px;border-radius:3px;background:linear-gradient(#3b4f7a,#26365a);border:1px solid #0004}
 .log{font-size:13px;color:var(--mut);max-height:110px;overflow:auto}
@@ -36,24 +47,25 @@ li{margin:6px 0}
 .card h3{font-size:16px;margin:0 0 6px}
 </style></head><body><main>
 <h1>Simulador de Dominó</h1>
-<div class="mut">Duplas (você + parceiro × 2 rivais), dobre-seis, 7 pedras cada, sem compra. Quem tem o 6-6 abre.</div>
+<details class="mut"><summary>Regras</summary>Dobre-seis, 7 pedras cada. Duplas (2 × 2): sem compra; quem tem o 6-6 abre. Solo (1 × 1): as 14 pedras restantes formam o monte e você compra quando não tiver jogada; abre quem tiver o maior dobre. Vence quem bate primeiro ou, se o jogo fechar, quem ficar com menos pontos na mão.</details>
 <div class="card row"><label>Dificuldade <select id="df"><option value="0">Fácil</option><option value="1">Médio</option><option value="2" selected>Difícil</option></select></label><label>Velocidade <select id="sp"><option value="0">Manual (eu avanço)</option><option value="2600">Lenta</option><option value="1500" selected>Normal</option><option value="700">Rápida</option></select></label><button class="p" id="nw">Nova partida</button></div>
 <div id="app"></div>
-<div class="card mut" style="font-size:13px">Princípios do feedback, baseados em guias de jogadores e sites de estratégia: pagat.com (dominó em duplas), dominoj tips (dicas de profissionais do Caribe), rarepike.com (estratégia avançada, contagem e probabilidade) e 3guysfrommiami.com (dominó cubano).</div>
 </main>
 <script>
-const NM=['Você','Rival D','Parceiro','Rival E'];
-const P={dobre:'Jogue os dobres cedo: só encaixam em um número e, presos na mão, podem impedir você de bater.',trava:'Leia os passes: se um rival passou em um número, deixe esse número aberto para travá-lo.','parceiro-passou':'Não deixe aberto um número em que seu parceiro passou: você trava seu próprio time.','cobriu-parceiro':'Evite cobrir a ponta que seu parceiro abriu: ele provavelmente tem pedras desse naipe.',forte:'Deixe nas pontas os números em que você é forte e jogue de forma coerente, para o parceiro entender sua mão.',esgotado:'Conte as pedras: com um número esgotado, a ponta fica morta e pode levar ao fechamento.',bater:'Quando dá para bater, bata.',apoio:'Devolva ao parceiro os números que ele abriu: quem abre um número costuma ter outras pedras dele.','abre-rival':'Evite deixar aberto o número que um rival acabou de abrir: provavelmente é o naipe forte dele.',peso:'Descarte pedras pesadas cedo: se o jogo fechar, cada ponto na mão conta contra você.'};
+let NM=['Você','Rival D','Parceiro','Rival E'];
+const P={dobre:'Jogue os dobres cedo: só encaixam em um número e, presos na mão, podem impedir você de bater.',trava:'Leia os passes: se um rival passou em um número, deixe esse número aberto para travá-lo.','parceiro-passou':'Não deixe aberto um número em que seu parceiro passou: você trava seu próprio time.','cobriu-parceiro':'Evite cobrir a ponta que seu parceiro abriu: ele provavelmente tem pedras desse naipe.',forte:'Deixe nas pontas os números em que você é forte; nas duplas, jogue de forma coerente para o parceiro entender sua mão.',lider:'Quando um adversário está perto de bater, leve o jogo para números em que ele já passou.',esgotado:'Conte as pedras: com um número esgotado, a ponta fica morta e pode levar ao fechamento.',bater:'Quando dá para bater, bata.',apoio:'Devolva ao parceiro os números que ele abriu: quem abre um número costuma ter outras pedras dele.','abre-rival':'Evite deixar aberto o número que um rival acabou de abrir: provavelmente é o naipe forte dele.',peso:'Descarte pedras pesadas cedo: se o jogo fechar, cada ponto na mão conta contra você.'};
 let G;const $=s=>document.querySelector(s);
 const cnt=(h,n)=>h.filter(t=>t[0]==n||t[1]==n).length;
-function newGame(){
+function newGame(mode){NM=mode=='solo'?['Você','—','Robô','—']:['Você','Rival D','Parceiro','Rival E'];
  let all=[];for(let a=0;a<7;a++)for(let b=a;b<7;b++)all.push([a,b]);
  for(let i=27;i>0;i--){const j=Math.floor(Math.random()*(i+1));[all[i],all[j]]=[all[j],all[i]]}
- const hands=[0,1,2,3].map(k=>all.slice(k*7,k*7+7).sort((x,y)=>y[0]+y[1]-x[0]-x[1]));
- const st=hands.findIndex(h=>h.some(t=>t[0]==6&&t[1]==6));
- G={hands,board:[[6,6]],nl:0,hist:[],init:hands.map(h=>h.map(t=>t.slice())),L:6,R:6,lo:st,ro:st,turn:(st+1)%4,ps:[new Set,new Set,new Set,new Set],pl:[0,0,0,0,0,0,0],pc:0,logs:[],dec:[],over:false,sel:null,df:+$('#df').value,res:null};
- G.hands[st].splice(G.hands[st].findIndex(t=>t[0]==6&&t[1]==6),1);G.pl[6]=1;G.hist.push({k:'m',s:st,t:[6,6],L0:6,R0:6,L1:6,R1:6});
- log(`${NM[st]} abriu com 6-6`);render();step();
+ const solo=mode=='solo',srt=a=>a.sort((x,y)=>y[0]+y[1]-x[0]-x[1]);
+ const hands=solo?[srt(all.slice(0,7)),[],srt(all.slice(7,14)),[]]:[0,1,2,3].map(k=>srt(all.slice(k*7,k*7+7))),mt=solo?all.slice(14):[];
+ const al=hands.flat(),dbl=al.filter(t=>t[0]==t[1]).sort((a,b)=>b[0]-a[0])[0],op=dbl||al.slice().sort((a,b)=>b[0]+b[1]-a[0]-a[1]||b[0]-a[0])[0];
+ const st=hands.findIndex(h=>h.includes(op));
+ G={hands,mt,mt0:mt.map(t=>t.slice()),board:[op.slice()],nl:0,hist:[],init:hands.map(h=>h.map(t=>t.slice())),L:op[0],R:op[1],lo:st,ro:st,turn:solo?(st+2)%4:(st+1)%4,ps:[new Set,new Set,new Set,new Set],pl:[0,0,0,0,0,0,0],pc:0,logs:[],dec:[],over:false,sel:null,solo:mode=='solo',df:+$('#df').value,res:null};
+ G.hands[st].splice(G.hands[st].indexOf(op),1);G.pl[op[0]]++;if(op[0]!=op[1])G.pl[op[1]]++;G.hist.push({k:'m',s:st,t:op.slice(),L0:op[0],R0:op[1],L1:op[0],R1:op[1]});
+ log(`${NM[st]} abriu com ${op[0]}-${op[1]}`);render();step();
 }
 function log(s){G.logs.push(s)}
 function moves(s){const o=[];G.hands[s].forEach((t,i)=>{const[a,b]=t;[['L',G.L],['R',G.R]].forEach(([sd,e])=>{
@@ -66,15 +78,15 @@ function ev(s,m,full){
  if(t[0]==t[1]&&h.length>1)add('dobre',4,`joga o dobre ${tn} cedo`);
  if(h.length==1)add('bater',100,'bate: acabam suas pedras');
  if(full){
-  const ne=endOf(m),oe=m.sd=='L'?G.R:G.L,ends=[...new Set([ne,oe])],opp=[(s+1)%4,(s+3)%4],pt=(s+2)%4;
+  const ne=endOf(m),oe=m.sd=='L'?G.R:G.L,ends=[...new Set([ne,oe])],opp=G.solo?[(s+2)%4]:[(s+1)%4,(s+3)%4],pt=G.solo?-1:(s+2)%4;
   ends.forEach(e=>{
-   if(opp.some(o=>G.ps[o].has(e)))add('trava',5,`deixa o ${e} aberto, número em que um rival já passou`);
-   if(G.ps[pt].has(e))add('parceiro-passou',-6,`deixa o ${e} aberto, número em que seu parceiro passou`);
+   if(opp.some(o=>G.ps[o].has(e)))add('trava',5,`deixa o ${e} aberto, número em que um rival já passou`);opp.forEach(o=>{if(G.hands[o].length<=3&&G.ps[o].has(e))add('lider',3,`deixa o ${e} aberto: ${NM[o]} já passou nele e está perto de bater`)});
+   if(pt>=0&&G.ps[pt].has(e))add('parceiro-passou',-6,`deixa o ${e} aberto, número em que seu parceiro passou`);
    const c=cnt(rest,e);if(c>=2)add('forte',c*1.5,`deixa o ${e} aberto, número em que você tem ${c} pedras`);
   });
   const og=hh=>new Set(G.hist.slice(1).filter(z=>z.k=='m'&&hh.includes(z.s)).map(z=>z.sd=='L'?z.L1:z.R1));
   const pe=og([pt]),re=og(opp);
-  ends.forEach(e=>{if(pe.has(e)&&!G.ps[pt].has(e))add('apoio',2.5,`devolve ao parceiro o ${e}, número que ele abriu`);if(re.has(e)&&!opp.some(o=>G.ps[o].has(e)))add('abre-rival',-2,`deixa aberto o ${e}, número que um rival abriu (provavelmente seu naipe forte)`)});
+  ends.forEach(e=>{if(pt>=0&&pe.has(e)&&!G.ps[pt].has(e))add('apoio',2.5,`devolve ao parceiro o ${e}, número que ele abriu`);if(re.has(e)&&!opp.some(o=>G.ps[o].has(e)))add('abre-rival',-2,`deixa aberto o ${e}, número que um rival abriu (provavelmente seu naipe forte)`)});
   const ow=m.sd=='L'?G.lo:G.ro;if(G.board.length>1&&ow==pt)add('cobriu-parceiro',-3,'cobre a ponta aberta pelo seu parceiro');
   const dead=e=>7-G.pl[e]-(t[0]==e||t[1]==e?1:0)-cnt(rest,e)<=0;
   if(dead(ne)&&ne!=oe)add('esgotado',2,`o ${ne} fica esgotado: ponta morta para todos`);
@@ -87,19 +99,19 @@ function aiPick(s){const ms=moves(s);if(G.df==0)return ms[Math.floor(Math.random
 function play(s,m){
  const t=G.hands[s].splice(m.i,1)[0];const L0=G.L,R0=G.R;
  if(m.sd=='L'){G.board.unshift(m.o);G.nl++;G.L=m.o[0];G.lo=s}else{G.board.push(m.o);G.R=m.o[1];G.ro=s}G.last=m.o;
- G.pl[t[0]]++;if(t[0]!=t[1])G.pl[t[1]]++;G.pc=0;G.hist.push({k:'m',s,t:[t[0],t[1]],sd:m.sd,L0,R0,L1:G.L,R1:G.R});log(`${NM[s]} jogou ${t[0]}-${t[1]}`);
- if(!G.hands[s].length){finish(s%2,`${NM[s]} bateu`);return}
- G.turn=(s+1)%4;
+ G.pl[t[0]]++;if(t[0]!=t[1])G.pl[t[1]]++;G.pc=0;G.dr=0;G.hist.push({k:'m',s,t:[t[0],t[1]],sd:m.sd,L0,R0,L1:G.L,R1:G.R});log(`${NM[s]} jogou ${t[0]}-${t[1]}`);
+ if(!G.hands[s].length){finish(G.solo?s:s%2,`${NM[s]} bateu${G.solo?` (o adversário ficou com ${G.hands[(s+2)%4].reduce((x,t)=>x+t[0]+t[1],0)} pontos)`:''}`);return}
+ G.turn=G.solo?(s+2)%4:(s+1)%4;
 }
 function pass(s){G.ps[s].add(G.L);G.ps[s].add(G.R);G.pc++;G.hist.push({k:'p',s,L:G.L,R:G.R});log(`${NM[s]} passou`);
- if(G.pc>=4){const sm=k=>[k,k+2].reduce((a,q)=>a+G.hands[q].reduce((x,t)=>x+t[0]+t[1],0),0),a=sm(0),b=sm(1);
+ if(G.pc>=(G.solo?2:4)){if(G.solo){const sm=[0,2].map(i=>G.hands[i].reduce((x,t)=>x+t[0]+t[1],0));finish(sm[0]<sm[1]?0:sm[1]<sm[0]?2:-1,`Jogo fechado: você ${sm[0]} pontos × robô ${sm[1]} pontos`);return}const sm=k=>[k,k+2].reduce((a,q)=>a+G.hands[q].reduce((x,t)=>x+t[0]+t[1],0),0),a=sm(0),b=sm(1);
   finish(a<b?0:b<a?1:-1,`Jogo fechado: sua dupla ${a} pontos × rivais ${b} pontos`);return}
- G.turn=(s+1)%4}
+ G.turn=G.solo?(s+2)%4:(s+1)%4;G.dr=0}
 function finish(w,msg){G.over=true;G.res={w,msg};log(msg);}
 function step(){
  if(G.over){render();return}
  render();
- if(G.turn==0){if(!moves(0).length)setTimeout(()=>{pass(0);step()},1000)}
+ if(G.turn==0){if(!moves(0).length&&!(G.solo&&G.mt.length)){const g=G;setTimeout(()=>{if(G===g){pass(0);step()}},1000)}}
  else{const sp=+$('#sp').value,g=G;if(!sp){G.waiting=true;render()}else setTimeout(()=>{if(G===g)aiAct()},sp)}
 }
 function userPlay(m){
@@ -115,25 +127,36 @@ const half=n=>`<span class="f">${PP[n].map(p=>`<u style="grid-area:${Math.ceil(p
 function tl(t,c=''){return `<span class="t ${c}">${half(t[0])}<i></i>${half(t[1])}</span>`}
 function cls(g){return g<=1.5?['Ótima','g']:g<=5?['Boa','g']:g<=10?['Imprecisa','b']:['Erro','b']}
 function mv(x,h){const t=h.find(()=>1);return x}
-function render(){
- let h='<div class="row">';
- [3,2,1].forEach(s=>h+=`<div class="card opp ${G.turn==s&&!G.over?'on':''}"><b>${NM[s]}</b><div>${'<span class="bk"></span>'.repeat(G.hands[s].length)}</div><div class="mut">${G.hands[s].length} pedras ${s==2?'· seu time':''}</div></div>`);
- h+='</div><div class="tm2">Pontas abertas: <b>'+G.L+'</b> e <b>'+G.R+'</b> · a última peça jogada fica com contorno dourado</div><div class="sq"><div class="stage">'+boardHtml()+'</div></div>';
+function menu(){G={menu:true,over:false,turn:-1};render()}
+function renderMenu(){
+ const sd=c=>`<div class="sp ${c}"><div class="bks">${'<span class="bk"></span>'.repeat(7)}</div><div class="mut">7 pedras</div></div>`;
+ $('#app').innerHTML=`<div class="play">${sd('top')}${sd('left')}<div class="sq"><div class="stage"></div><div class="ov"><b>Como você quer jogar?</b><button class="p" data-mode="dup">Duplas<small>você + parceiro contra 2 rivais</small></button><button class="p" data-mode="solo">Solo<small>você contra um robô, 1 × 1</small></button></div></div>${sd('right')}<div class="card hd mut">Escolha um modo no centro da mesa para começar.</div></div>`;
+ fit();
+}
+function render(){if(G.menu){renderMenu();return}
+ const seat=(s,c,lab)=>`<div class="sp ${c} ${G.turn==s&&!G.over?'on':''}"><div class="bks">${'<span class="bk"></span>'.repeat(G.hands[s].length)}</div><div class="mut">${lab} · ${G.hands[s].length}</div></div>`;
+ let h='<div class="play">'+seat(2,'top',NM[2])+(G.solo?'':seat(3,'left',NM[3]))+'<div class="sq"><div class="stage">'+boardHtml()+'</div></div>'+(G.solo?`<div class="sp right"><div class="bks">${'<span class="bk"></span>'.repeat(G.mt.length)}</div><div class="mut">Monte · ${G.mt.length}</div></div>`:seat(1,'right',NM[1]));
  const ms=G.turn==0&&!G.over?moves(0):[];
- h+='<div class="card"><b>Sua mão</b> '+(G.over?'':G.turn==0?(ms.length?'· sua vez':'· sem jogada, passando...'):'· aguarde');
+ h+='<div class="card hd"><b>Sua mão</b> <span class="mut">(pontas '+G.L+' e '+G.R+')</span> '+(G.over?'':G.turn==0?(ms.length?'· sua vez':G.solo&&G.mt.length?'· sem jogada: compre do monte':'· sem jogada, passando...'):'· aguarde');
  h+='<div class="row" id="hand">'+G.hands[0].map((t,i)=>`<span data-i="${i}">${tl(t,'h v '+(ms.some(m=>m.i==i)?'ok':''))}</span>`).join('')+'</div>';
+ if(G.solo&&G.turn==0&&!G.over&&!ms.length&&G.mt.length)h+='<div class="row" style="margin-top:6px"><button class="p" data-draw="1">Comprar do monte ('+G.mt.length+')</button></div>';
  if(G.sel!=null){const o=ms.filter(m=>m.i==G.sel);h+='<div class="row" style="margin-top:8px">Em qual ponta? '+o.map((m,k)=>`<button class="p" data-m="${ms.indexOf(m)}">${m.sd=='L'?'Esquerda ('+G.L+')':'Direita ('+G.R+')'}</button>`).join('')+'</div>'}
- h+='</div>'+(G.waiting&&!G.over?'<div class="card"><button class="p" data-go="1">Próxima jogada: '+NM[G.turn]+' ▶</button></div>':'')+'<div class="card log">'+G.logs.slice(-8).map(x=>'<div>'+x+'</div>').join('')+'</div>';
+ h+='</div>'+(G.waiting&&!G.over?'<div class="card hd"><button class="p" data-go="1">Próxima jogada: '+NM[G.turn]+' ▶</button></div>':'')+'</div><div class="card log">'+G.logs.slice(-8).map(x=>'<div>'+x+'</div>').join('')+'</div>';
  if(G.over)h+=report();
  $('#app').innerHTML=h;fit();
 }
-function aiAct(){if(G.over||G.turn==0)return;G.waiting=false;const m=moves(G.turn).length?aiPick(G.turn):null;m?play(G.turn,m):pass(G.turn);step()}
+function aiAct(){if(G.over||G.turn==0)return;G.waiting=false;const s=G.turn;
+ if(G.solo&&!moves(s).length&&G.mt.length){let n=0;G.ps[s].add(G.L);G.ps[s].add(G.R);while(!moves(s).length&&G.mt.length){G.hands[s].push(G.mt.pop());n++}G.hist.push({k:'p',s,L:G.L,R:G.R,d:n});log(`${NM[s]} comprou ${n} pedra${n>1?'s':''}`)}
+ const m=moves(s).length?aiPick(s):null;m?play(s,m):pass(s);step()}
+function userDraw(){if(G.over||G.turn!=0||moves(0).length||!G.mt.length)return;
+ if(!G.dr){G.ps[0].add(G.L);G.ps[0].add(G.R);G.hist.push({k:'p',s:0,L:G.L,R:G.R,d:1})}else{const e=[...G.hist].reverse().find(z=>z.k=='p'&&z.s==0);e.d++}
+ G.dr=(G.dr||0)+1;G.hands[0].push(G.mt.pop());G.hands[0].sort((a,b)=>b[0]+b[1]-a[0]-a[1]);log('Você comprou uma pedra');render();step()}
 function fit(){const s=document.querySelector('.sq'),g=document.querySelector('.stage');if(s&&g)g.style.transform=`scale(${s.clientWidth/760})`}
 addEventListener('resize',fit);
 function boardHtml(){
- const U=36,LIM=322,items=[],c=G.nl;
- items.push({n:6,f:6,d:[1,0],dbl:1,c:[0,0],t:G.board[c]});
- const arm=(ts,d,ni)=>{let H=[d[0]*U/2,d[1]*U/2];
+ const U=36,LIM=322,items=[],c=G.nl,t0=G.board[c],hl=(t0[0]==t0[1]?U:2*U)/2;
+ items.push({n:t0[0],f:t0[1],d:[1,0],dbl:t0[0]==t0[1],c:[0,0],t:t0});
+ const arm=(ts,d,ni)=>{let H=[d[0]*hl,d[1]*hl];
   ts.forEach(t=>{const dbl=t[0]==t[1],len=dbl?U:2*U;
    let ex=H[0]+d[0]*len,ey=H[1]+d[1]*len;
    if(Math.abs(ex)>LIM||Math.abs(ey)>LIM){const nd=[-d[1],d[0]];H=[H[0]+(d[0]+nd[0])*U/2,H[1]+(d[1]+nd[1])*U/2];d=nd;ex=H[0]+d[0]*len;ey=H[1]+d[1]*len}
@@ -145,43 +168,43 @@ function boardHtml(){
 }
 function report(){
  const w=G.res.w,d=G.dec,H=G.hist,ok=d.filter(x=>x.gap<=5).length;
- const GR={eu:['peso','dobre','forte'],par:['parceiro-passou','cobriu-parceiro','apoio'],riv:['trava','esgotado','abre-rival']};
+ const GR={eu:['peso','dobre','forte'],par:['parceiro-passou','cobriu-parceiro','apoio'],riv:['trava','lider','esgotado','abre-rival']};
  const GN={eu:'Sua mão: descarte e naipe forte',par:'Parceiro: proteger e apoiar',riv:'Rivais: ler e travar'};
  const sc={eu:[0,0],par:[0,0],riv:[0,0]};
  d.forEach(x=>{const bk=x.b.e.r,ck=x.c.e.r;for(const g in GR)GR[g].forEach(k=>{
   const bp=bk.some(r=>r.k==k&&r.p>0),cp=ck.some(r=>r.k==k&&r.p>0),cn=ck.some(r=>r.k==k&&r.p<0)&&!bk.some(r=>r.k==k&&r.p<0);
   if(bp){sc[g][1]++;if(cp)sc[g][0]++}else if(cn)sc[g][1]++})});
  const pc=g=>sc[g][1]?Math.round(100*sc[g][0]/sc[g][1]):null;
- const bars=Object.keys(GR).map(g=>`<div class="k"><span>${GN[g]}</span><div class="bar"><span style="width:${pc(g)??0}%"></span></div><b>${pc(g)==null?'—':pc(g)+'%'}</b></div>`).join('');
+ const bars=Object.keys(GR).filter(g=>!(G.solo&&g=='par')).map(g=>`<div class="k"><span>${GN[g]}</span><div class="bar"><span style="width:${pc(g)??0}%"></span></div><b>${pc(g)==null?'—':pc(g)+'%'}</b></div>`).join('');
  const ev=[];H.forEach((e,i)=>{if(e.k!='p')return;let j=i-1;while(j>0&&H[j].k!='m')j--;ev.push({e,c:H[j]})});
- const rp=ev.filter(x=>x.e.s%2).length,tp=ev.length-rp,mine=ev.filter(x=>x.e.s%2&&x.c.s==0).length,self=ev.filter(x=>x.e.s==2&&x.c.s==0).length;
- const bp=[0,0];H.forEach((e,i)=>{if(e.k=='m'&&[1,2,3].every(q=>H[i+q]&&H[i+q].k=='p'))bp[e.s%2]++});
- const pl=[0,1,2,3].map(s=>`${NM[s]} ${H.filter(e=>e.k=='m'&&e.s==s).length}`).join(' · ');
+ const SE=G.solo?[0,2]:[0,1,2,3],isRv=s=>G.solo?s!=0:s%2==1,rp=ev.filter(x=>isRv(x.e.s)).length,tp=ev.length-rp,mine=ev.filter(x=>isRv(x.e.s)&&x.c.s==0).length,self=G.solo?0:ev.filter(x=>x.e.s==2&&x.c.s==0).length;
+ const bp=[0,0];H.forEach((e,i)=>{if(!G.solo&&e.k=='m'&&[1,2,3].every(q=>H[i+q]&&H[i+q].k=='p'))bp[isRv(e.s)?1:0]++});
+ const pl=SE.map(s=>`${NM[s]} ${H.filter(e=>e.k=='m'&&e.s==s).length}`).join(' · ');
  const ph=[['Abertura',0,8],['Meio de jogo',8,20],['Final',20,99]].map(([n,a,b])=>{const z=d.filter(x=>x.ply>=a&&x.ply<b);return z.length?`${n}: ${z.filter(x=>x.gap<=5).length} de ${z.length} decisões boas`:null}).filter(Boolean).join(' · ');
- const mm=ev.slice(0,8).map(x=>`<li><span class="${x.e.s%2?'g':'b'}">${NM[x.e.s]} passou</span> (pontas ${x.e.L} e ${x.e.R}), depois de ${NM[x.c.s]} jogar ${x.c.t.join('-')}</li>`).join('');
+ const mm=ev.slice(0,8).map(x=>`<li><span class="${isRv(x.e.s)?'g':'b'}">${NM[x.e.s]} ${x.e.d?'comprou '+x.e.d+(x.e.d>1?' pedras':' pedra'):'passou'}</span> (pontas ${x.e.L} e ${x.e.R}), depois de ${NM[x.c.s]} jogar ${x.c.t.join('-')}</li>`).join('');
  const sm=h=>h.reduce((a,t)=>a+t[0]+t[1],0),tl2=h=>h.map(t=>t.join('-')).join(' ');
- const hs=G.init.map((h,s)=>`<div><b>${NM[s]}</b> (${sm(h)} pts): ${tl2(h)}</div>`).join('');
+ const hs=SE.map(s=>{const h=G.init[s];return `<div><b>${NM[s]}</b> (${sm(h)} pts): ${tl2(h)}</div>`}).join('')+(G.solo?`<div><b>Monte no início</b>: ${tl2(G.mt0)}</div>`:'');
  const tmh=[...G.init[0],...G.init[2]],rvh=[...G.init[1],...G.init[3]];
- const dom=[0,1,2,3,4,5,6].map(n=>[n,cnt(tmh,n),cnt(rvh,n)]).sort((a,b)=>Math.abs(b[1]-b[2])-Math.abs(a[1]-a[2])).slice(0,2).filter(x=>x[1]!=x[2]).map(([n,a,b])=>a>b?`seu time tinha ${a} pedras de ${n} contra ${b} dos rivais`:`os rivais tinham ${b} pedras de ${n} contra ${a} do seu time`).join('; ');
- const left=G.hands.map((h,s)=>`${NM[s]}: ${h.length?tl2(h)+' ('+sm(h)+' pts)':'sem pedras'}`).join(' · ');
+ const dom=G.solo?'':[0,1,2,3,4,5,6].map(n=>[n,cnt(tmh,n),cnt(rvh,n)]).sort((a,b)=>Math.abs(b[1]-b[2])-Math.abs(a[1]-a[2])).slice(0,2).filter(x=>x[1]!=x[2]).map(([n,a,b])=>a>b?`seu time tinha ${a} pedras de ${n} contra ${b} dos rivais`:`os rivais tinham ${b} pedras de ${n} contra ${a} do seu time`).join('; ');
+ const left=SE.map(s=>{const h=G.hands[s];return `${NM[s]}: ${h.length?tl2(h)+' ('+sm(h)+' pts)':'sem pedras'}`}).join(' · ');
  const bad=d.filter(x=>x.gap>1.5).sort((a,b)=>b.gap-a.gap).slice(0,5).sort((a,b)=>a.n-b.n);
  const li=bad.map(x=>{const[lab,cl]=cls(x.gap),b=x.b,c=x.c;
   const known=x.ps.map((p,s)=>s?`${NM[s]}: ${p||'nenhum'}`:'').filter(Boolean).join(' · ');
   const low=x.un.map((u,n)=>u<=2?`${n}→${u}`:'').filter(Boolean).join(', ');
-  const aft=[];for(let j=x.ply+1;j<H.length&&H[j].k=='p';j++)aft.push(NM[H[j].s]);
+  const aft=[];for(let j=x.ply+1;j<H.length&&H[j].k=='p';j++)aft.push(NM[H[j].s]+(H[j].d?' comprou':' passou'));
   const bt=b.e.r.filter(r=>r.p>0).sort((p,q)=>q.p-p.p).slice(0,2).map(r=>r.x).join('; ')||'rendia mais vantagem no total';
   const ct=c.e.r.filter(r=>r.p<0).map(r=>r.x).join('; ');
-  return `<li><b class="${cl}">Decisão ${x.n} (${lab}).</b> Mão: ${x.h}. Pontas: ${x.ends[0]} e ${x.ends[1]}.<br><span class="mut">Passes até ali — ${known}.${low?' Pedras ainda com os outros (número→qtd): '+low+'.':''}</span><br>Você jogou ${c.x.o.join('-')} (${c.x.sd=='L'?'esq.':'dir.'})${ct?', que '+ct:''}. Reação da mesa: ${aft.length?aft.join(' e ')+' passou':'ninguém passou'}.<br>Melhor: ${b.x.o.join('-')} (${b.x.sd=='L'?'esq.':'dir.'}), pois ${bt}.</li>`}).join('');
+  return `<li><b class="${cl}">Decisão ${x.n} (${lab}).</b> Mão: ${x.h}. Pontas: ${x.ends[0]} e ${x.ends[1]}.<br><span class="mut">Passes até ali — ${known}.${low?' Pedras ainda com os outros (número→qtd): '+low+'.':''}</span><br>Você jogou ${c.x.o.join('-')} (${c.x.sd=='L'?'esq.':'dir.'})${ct?', que '+ct:''}. Reação da mesa: ${aft.length?aft.join(' e '):'ninguém passou'}.<br>Melhor: ${b.x.o.join('-')} (${b.x.sd=='L'?'esq.':'dir.'}), pois ${bt}.</li>`}).join('');
  const gs=Object.keys(GR).filter(g=>pc(g)!=null).sort((a,b)=>pc(a)-pc(b)),wk=gs[0],bst=gs[gs.length-1];
  const plan=wk&&pc(wk)<100?GR[wk].map(k=>`<li>${P[k]}</li>`).join(''):'';
- return `<div class="card"><h2 style="margin:0 0 6px;font-size:18px">${w==0?'Vitória do seu time!':w==1?'Os rivais venceram':'Empate'}</h2><div class="mut">${G.res.msg}</div>
+ return `<div class="card"><h2 style="margin:0 0 6px;font-size:18px">${w==0?(G.solo?'Você venceu!':'Vitória do seu time!'):w<0?'Empate':G.solo?NM[w]+' venceu':'Os rivais venceram'}</h2><div class="mut">${G.res.msg}</div>
  <p>${d.length?`Decisões com escolha real: ${d.length}. Ótimas ou boas: ${ok} (${Math.round(100*ok/d.length)}%). ${ph}.`:'Poucas decisões reais nesta partida (muitas jogadas forçadas).'}</p></div>
- <div class="card"><h3>Seus três objetivos</h3><div class="mut" style="font-size:13px">Uma pesquisa acadêmica sobre agentes de dominó em duplas concluiu que vence mais quem equilibra três metas: a própria mão, o parceiro e o bloqueio dos rivais. A barra mostra em quantas oportunidades você escolheu a jogada que cumpria cada meta.</div>${bars}${bst&&wk!=bst&&pc(bst)>=70?`<div class="g">Ponto forte: ${GN[bst].split(':')[0].toLowerCase()}.</div>`:''}</div>
- <div class="card"><h3>O jogo inteiro</h3><p>Passes: seu time ${tp}, rivais ${rp}. Rivais travados logo após jogadas suas: ${mine}. Vezes em que sua jogada deixou o parceiro sem opção: ${self}.${bp[0]?` Mesa travada a seu favor (os três seguintes passaram): ${bp[0]}.`:''}${bp[1]?` Mesa travada contra você: ${bp[1]}.`:''}<br><span class="mut">Pedras jogadas: ${pl}.</span></p>${mm?`<b>Lances com passe</b><ul>${mm}</ul>`:''}</div>
+ <div class="card"><h3>${G.solo?'Seus objetivos':'Seus três objetivos'}</h3><div class="mut" style="font-size:13px">${G.solo?'No solo você enfrenta um único adversário: vence quem equilibra a própria mão e a pressão sobre ele, forçando-o a comprar do monte. A barra mostra':'Uma pesquisa acadêmica sobre agentes de dominó em duplas concluiu que vence mais quem equilibra três metas: a própria mão, o parceiro e o bloqueio dos rivais. A barra mostra'} em quantas oportunidades você escolheu a jogada que cumpria cada meta.</div>${bars}${bst&&wk!=bst&&pc(bst)>=70?`<div class="g">Ponto forte: ${GN[bst].split(':')[0].toLowerCase()}.</div>`:''}</div>
+ <div class="card"><h3>O jogo inteiro</h3><p>${G.solo?`Você comprou ou passou ${tp} vez(es); o robô, ${rp}.`:`Passes: seu time ${tp}, rivais ${rp}.`} Adversários travados logo após jogadas suas: ${mine}.${G.solo?'':` Vezes em que sua jogada deixou o parceiro sem opção: ${self}.`}${bp[0]?` Mesa travada a seu favor (os três seguintes passaram): ${bp[0]}.`:''}${bp[1]?` Mesa travada contra você: ${bp[1]}.`:''}<br><span class="mut">Pedras jogadas: ${pl}.</span></p>${mm?`<b>Lances com passe</b><ul>${mm}</ul>`:''}</div>
  <div class="card"><h3>Mãos reveladas</h3><div style="font-size:14px">${hs}</div><p class="mut">${dom?'Controle de naipes: '+dom+'. ':''}No fim sobraram: ${left}.</p></div>
  <div class="card"><h3>Decisões para rever</h3>${li?`<ul>${li}</ul>`:'<p class="g">Nenhuma decisão ficou muito longe do ideal.</p>'}</div>
  ${plan?`<div class="card"><h3>Para a próxima partida</h3><ul>${plan}</ul></div>`:''}
- <div class="card mut" style="font-size:13px"><b>Como julgamos.</b> Cada jogada sua é comparada com todas as legais, usando só o que a mesa mostrava naquele momento: passes de todos, contagem de pedras, pontas abertas por cada jogador, peso e dobres. As mãos reveladas servem para você conferir depois e não entram na nota. Base: guias de inferência e passes (rarepike.com), dominó de duplas no Caribe (pagat.com), relato de sala de aula sobre contar as sete pedras de cada número (GPEF/USP) e dissertão da UFAM sobre as três metas do dominó em duplas. É uma heurística, não uma verdade absoluta.</div>`;
+`;
 }
 function oldReport(){
  const w=G.res.w,d=G.dec,ok=d.filter(x=>x.gap<=5).length,mis={},hurt={};
@@ -200,11 +223,13 @@ function oldReport(){
  return h;
 }
 $('#app').addEventListener('click',e=>{
+ const md=e.target.closest('[data-mode]');if(md){newGame(md.dataset.mode);return}
+ if(e.target.closest('[data-draw]')){userDraw();return}
  if(e.target.closest('[data-go]')){if(G.waiting&&!G.over)aiAct();return}
  if(G.over||G.turn!=0)return;const ms=moves(0);
  const mb=e.target.closest('[data-m]');if(mb){userPlay(ms[+mb.dataset.m]);return}
  const th=e.target.closest('[data-i]');if(!th)return;const i=+th.dataset.i,o=ms.filter(m=>m.i==i);if(!o.length)return;
  if(o.length==1||G.L==G.R)userPlay(o[o.length-1]);else{G.sel=i;render()}
 });
-$('#sp').onchange=()=>{if(G.waiting&&+$('#sp').value)aiAct()};$('#nw').onclick=newGame;$('#df').onchange=newGame;newGame();
+$('#sp').onchange=()=>{if(G.waiting&&+$('#sp').value)aiAct()};$('#nw').onclick=menu;$('#df').onchange=menu;menu();
 </script></body></html>
