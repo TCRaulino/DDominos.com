@@ -1,0 +1,210 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Simulador de Dominó</title>
+<style>
+:root{--bg:#f6f4ef;--fg:#1d1d1b;--mut:#6b6a63;--card:#fff;--bd:#d9d6cc;--ac:#1f6f5c;--bad:#b3402a;--tile:#fffdf6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181a;--fg:#ececE6;--mut:#9a998f;--card:#232527;--bd:#3a3d40;--ac:#4cc3a4;--bad:#ef8b73;--tile:#2d3033}}
+:root[data-theme="dark"]{--bg:#17181a;--fg:#ece9e6;--mut:#9a998f;--card:#232527;--bd:#3a3d40;--ac:#4cc3a4;--bad:#ef8b73;--tile:#2d3033}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:820px;margin:0 auto;padding:14px}
+h1{font-size:20px;margin:0 0 4px}.mut{color:var(--mut);font-size:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin:10px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,select{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 12px}
+button.p{background:var(--ac);color:#fff;border-color:var(--ac)}
+.opp{flex:1;min-width:90px;text-align:center}.opp.on{outline:2px solid var(--ac)}
+.sq{position:relative;width:100%;max-width:780px;aspect-ratio:1;margin:10px auto;border:10px solid #6b4423;border-radius:20px;background:radial-gradient(circle at 50% 40%,#2f8059,#17442d);box-sizing:border-box;overflow:hidden;box-shadow:inset 0 0 30px #0006}
+.stage{position:absolute;left:0;top:0;width:760px;height:760px;transform-origin:0 0}
+.stage .t{position:absolute;box-sizing:border-box;margin:0}.stage .t.last{outline:3px solid #f5c542}
+.stage .f{flex:1;width:auto;height:auto;padding:3px;box-sizing:border-box}.stage .f u{width:7px;height:7px}
+.stage .t i{margin:4px 0}.stage .t.v i{margin:0 4px}
+.tm2{text-align:center;color:var(--mut);font-size:14px;margin-top:10px}
+.tm{color:#d8efe2;font-size:14px;text-align:center}
+
+.t{display:inline-flex;align-items:stretch;background:#fffdf2;border-radius:8px;border:1px solid #bdb8a6;box-shadow:0 2px 3px #0005;color:#1d1d1b}
+.t.v{flex-direction:column}
+.f{display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);width:38px;height:38px;padding:4px;box-sizing:content-box}
+.f u{width:8px;height:8px;border-radius:50%;background:#1d1d1b;place-self:center;box-shadow:inset 0 -1px 1px #fff6}
+.t i{width:2px;background:#9a947f;margin:5px 0}.t.v i{width:auto;height:2px;margin:0 5px}
+.t.h{cursor:pointer;margin:6px 4px 2px}.t.h .f{width:42px;height:42px}.t.h u{width:10px;height:10px}
+.t.h.ok{outline:3px solid #f5c542;transform:translateY(-8px)}.t.h:not(.ok){opacity:.5}
+.bk{display:inline-block;width:14px;height:26px;margin:1px;border-radius:3px;background:linear-gradient(#3b4f7a,#26365a);border:1px solid #0004}
+.log{font-size:13px;color:var(--mut);max-height:110px;overflow:auto}
+.g{color:var(--ac)}.b{color:var(--bad)}
+li{margin:6px 0}
+.k{display:grid;grid-template-columns:minmax(120px,210px) 1fr 44px;gap:8px;align-items:center;margin:6px 0;font-size:14px}
+.bar{height:9px;background:var(--bd);border-radius:5px;overflow:hidden}.bar span{display:block;height:100%;background:var(--ac)}
+.card h3{font-size:16px;margin:0 0 6px}
+</style></head><body><main>
+<h1>Simulador de Dominó</h1>
+<div class="mut">Duplas (você + parceiro × 2 rivais), dobre-seis, 7 pedras cada, sem compra. Quem tem o 6-6 abre.</div>
+<div class="card row"><label>Dificuldade <select id="df"><option value="0">Fácil</option><option value="1">Médio</option><option value="2" selected>Difícil</option></select></label><label>Velocidade <select id="sp"><option value="0">Manual (eu avanço)</option><option value="2600">Lenta</option><option value="1500" selected>Normal</option><option value="700">Rápida</option></select></label><button class="p" id="nw">Nova partida</button></div>
+<div id="app"></div>
+<div class="card mut" style="font-size:13px">Princípios do feedback, baseados em guias de jogadores e sites de estratégia: pagat.com (dominó em duplas), dominoj tips (dicas de profissionais do Caribe), rarepike.com (estratégia avançada, contagem e probabilidade) e 3guysfrommiami.com (dominó cubano).</div>
+</main>
+<script>
+const NM=['Você','Rival D','Parceiro','Rival E'];
+const P={dobre:'Jogue os dobres cedo: só encaixam em um número e, presos na mão, podem impedir você de bater.',trava:'Leia os passes: se um rival passou em um número, deixe esse número aberto para travá-lo.','parceiro-passou':'Não deixe aberto um número em que seu parceiro passou: você trava seu próprio time.','cobriu-parceiro':'Evite cobrir a ponta que seu parceiro abriu: ele provavelmente tem pedras desse naipe.',forte:'Deixe nas pontas os números em que você é forte e jogue de forma coerente, para o parceiro entender sua mão.',esgotado:'Conte as pedras: com um número esgotado, a ponta fica morta e pode levar ao fechamento.',bater:'Quando dá para bater, bata.',apoio:'Devolva ao parceiro os números que ele abriu: quem abre um número costuma ter outras pedras dele.','abre-rival':'Evite deixar aberto o número que um rival acabou de abrir: provavelmente é o naipe forte dele.',peso:'Descarte pedras pesadas cedo: se o jogo fechar, cada ponto na mão conta contra você.'};
+let G;const $=s=>document.querySelector(s);
+const cnt=(h,n)=>h.filter(t=>t[0]==n||t[1]==n).length;
+function newGame(){
+ let all=[];for(let a=0;a<7;a++)for(let b=a;b<7;b++)all.push([a,b]);
+ for(let i=27;i>0;i--){const j=Math.floor(Math.random()*(i+1));[all[i],all[j]]=[all[j],all[i]]}
+ const hands=[0,1,2,3].map(k=>all.slice(k*7,k*7+7).sort((x,y)=>y[0]+y[1]-x[0]-x[1]));
+ const st=hands.findIndex(h=>h.some(t=>t[0]==6&&t[1]==6));
+ G={hands,board:[[6,6]],nl:0,hist:[],init:hands.map(h=>h.map(t=>t.slice())),L:6,R:6,lo:st,ro:st,turn:(st+1)%4,ps:[new Set,new Set,new Set,new Set],pl:[0,0,0,0,0,0,0],pc:0,logs:[],dec:[],over:false,sel:null,df:+$('#df').value,res:null};
+ G.hands[st].splice(G.hands[st].findIndex(t=>t[0]==6&&t[1]==6),1);G.pl[6]=1;G.hist.push({k:'m',s:st,t:[6,6],L0:6,R0:6,L1:6,R1:6});
+ log(`${NM[st]} abriu com 6-6`);render();step();
+}
+function log(s){G.logs.push(s)}
+function moves(s){const o=[];G.hands[s].forEach((t,i)=>{const[a,b]=t;[['L',G.L],['R',G.R]].forEach(([sd,e])=>{
+ if(a==e)o.push({i,sd,o:sd=='L'?[b,a]:[a,b]});if(b==e&&a!=b)o.push({i,sd,o:sd=='L'?[a,b]:[b,a]})})});return o}
+const endOf=m=>m.sd=='L'?m.o[0]:m.o[1];
+function ev(s,m,full){
+ const h=G.hands[s],t=h[m.i],rest=h.filter((_,k)=>k!=m.i),pips=t[0]+t[1],R=[],tn=`${t[0]}-${t[1]}`;
+ const add=(k,p,x)=>R.push({k,p,x});
+ add('peso',pips*.6,`descarta uma pedra pesada (${tn}, ${pips} pontos)`);
+ if(t[0]==t[1]&&h.length>1)add('dobre',4,`joga o dobre ${tn} cedo`);
+ if(h.length==1)add('bater',100,'bate: acabam suas pedras');
+ if(full){
+  const ne=endOf(m),oe=m.sd=='L'?G.R:G.L,ends=[...new Set([ne,oe])],opp=[(s+1)%4,(s+3)%4],pt=(s+2)%4;
+  ends.forEach(e=>{
+   if(opp.some(o=>G.ps[o].has(e)))add('trava',5,`deixa o ${e} aberto, número em que um rival já passou`);
+   if(G.ps[pt].has(e))add('parceiro-passou',-6,`deixa o ${e} aberto, número em que seu parceiro passou`);
+   const c=cnt(rest,e);if(c>=2)add('forte',c*1.5,`deixa o ${e} aberto, número em que você tem ${c} pedras`);
+  });
+  const og=hh=>new Set(G.hist.slice(1).filter(z=>z.k=='m'&&hh.includes(z.s)).map(z=>z.sd=='L'?z.L1:z.R1));
+  const pe=og([pt]),re=og(opp);
+  ends.forEach(e=>{if(pe.has(e)&&!G.ps[pt].has(e))add('apoio',2.5,`devolve ao parceiro o ${e}, número que ele abriu`);if(re.has(e)&&!opp.some(o=>G.ps[o].has(e)))add('abre-rival',-2,`deixa aberto o ${e}, número que um rival abriu (provavelmente seu naipe forte)`)});
+  const ow=m.sd=='L'?G.lo:G.ro;if(G.board.length>1&&ow==pt)add('cobriu-parceiro',-3,'cobre a ponta aberta pelo seu parceiro');
+  const dead=e=>7-G.pl[e]-(t[0]==e||t[1]==e?1:0)-cnt(rest,e)<=0;
+  if(dead(ne)&&ne!=oe)add('esgotado',2,`o ${ne} fica esgotado: ponta morta para todos`);
+  R.push({k:'var',p:new Set(rest.flat()).size*.8,x:''});
+ }
+ return{s:R.reduce((a,r)=>a+r.p,0),r:R.filter(r=>r.x&&Math.abs(r.p)>=1.5)};
+}
+function aiPick(s){const ms=moves(s);if(G.df==0)return ms[Math.floor(Math.random()*ms.length)];
+ let best=null,bs=-1e9;ms.forEach(m=>{const v=ev(s,m,G.df==2).s+(G.df==1?Math.random()*3:Math.random()*.3);if(v>bs){bs=v;best=m}});return best}
+function play(s,m){
+ const t=G.hands[s].splice(m.i,1)[0];const L0=G.L,R0=G.R;
+ if(m.sd=='L'){G.board.unshift(m.o);G.nl++;G.L=m.o[0];G.lo=s}else{G.board.push(m.o);G.R=m.o[1];G.ro=s}G.last=m.o;
+ G.pl[t[0]]++;if(t[0]!=t[1])G.pl[t[1]]++;G.pc=0;G.hist.push({k:'m',s,t:[t[0],t[1]],sd:m.sd,L0,R0,L1:G.L,R1:G.R});log(`${NM[s]} jogou ${t[0]}-${t[1]}`);
+ if(!G.hands[s].length){finish(s%2,`${NM[s]} bateu`);return}
+ G.turn=(s+1)%4;
+}
+function pass(s){G.ps[s].add(G.L);G.ps[s].add(G.R);G.pc++;G.hist.push({k:'p',s,L:G.L,R:G.R});log(`${NM[s]} passou`);
+ if(G.pc>=4){const sm=k=>[k,k+2].reduce((a,q)=>a+G.hands[q].reduce((x,t)=>x+t[0]+t[1],0),0),a=sm(0),b=sm(1);
+  finish(a<b?0:b<a?1:-1,`Jogo fechado: sua dupla ${a} pontos × rivais ${b} pontos`);return}
+ G.turn=(s+1)%4}
+function finish(w,msg){G.over=true;G.res={w,msg};log(msg);}
+function step(){
+ if(G.over){render();return}
+ render();
+ if(G.turn==0){if(!moves(0).length)setTimeout(()=>{pass(0);step()},1000)}
+ else{const sp=+$('#sp').value,g=G;if(!sp){G.waiting=true;render()}else setTimeout(()=>{if(G===g)aiAct()},sp)}
+}
+function userPlay(m){
+ const ms=moves(0),keys=new Set(ms.map(x=>x.i+':'+endOf(x)+':'+(x.sd=='L'?G.R:G.L)));
+ if(keys.size>1){
+  const all=ms.map(x=>({x,e:ev(0,x,true)})),best=all.reduce((a,b)=>b.e.s>a.e.s?b:a),ch=all.find(a=>a.x==m)||all.find(a=>a.x.i==m.i&&a.x.sd==m.sd);
+  G.dec.push({n:G.dec.length+1,gap:best.e.s-ch.e.s,b:best,c:ch,h:G.hands[0].map(t=>t.join('-')).join(' '),ply:G.hist.length,ends:[G.L,G.R],ps:G.ps.map(z=>[...z].sort().join(',')),un:[0,1,2,3,4,5,6].map(n=>7-G.pl[n]-cnt(G.hands[0],n))});
+ }
+ G.sel=null;play(0,m);step();
+}
+const PP={0:[],1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};
+const half=n=>`<span class="f">${PP[n].map(p=>`<u style="grid-area:${Math.ceil(p/3)}/${(p-1)%3+1}"></u>`).join('')}</span>`;
+function tl(t,c=''){return `<span class="t ${c}">${half(t[0])}<i></i>${half(t[1])}</span>`}
+function cls(g){return g<=1.5?['Ótima','g']:g<=5?['Boa','g']:g<=10?['Imprecisa','b']:['Erro','b']}
+function mv(x,h){const t=h.find(()=>1);return x}
+function render(){
+ let h='<div class="row">';
+ [3,2,1].forEach(s=>h+=`<div class="card opp ${G.turn==s&&!G.over?'on':''}"><b>${NM[s]}</b><div>${'<span class="bk"></span>'.repeat(G.hands[s].length)}</div><div class="mut">${G.hands[s].length} pedras ${s==2?'· seu time':''}</div></div>`);
+ h+='</div><div class="tm2">Pontas abertas: <b>'+G.L+'</b> e <b>'+G.R+'</b> · a última peça jogada fica com contorno dourado</div><div class="sq"><div class="stage">'+boardHtml()+'</div></div>';
+ const ms=G.turn==0&&!G.over?moves(0):[];
+ h+='<div class="card"><b>Sua mão</b> '+(G.over?'':G.turn==0?(ms.length?'· sua vez':'· sem jogada, passando...'):'· aguarde');
+ h+='<div class="row" id="hand">'+G.hands[0].map((t,i)=>`<span data-i="${i}">${tl(t,'h v '+(ms.some(m=>m.i==i)?'ok':''))}</span>`).join('')+'</div>';
+ if(G.sel!=null){const o=ms.filter(m=>m.i==G.sel);h+='<div class="row" style="margin-top:8px">Em qual ponta? '+o.map((m,k)=>`<button class="p" data-m="${ms.indexOf(m)}">${m.sd=='L'?'Esquerda ('+G.L+')':'Direita ('+G.R+')'}</button>`).join('')+'</div>'}
+ h+='</div>'+(G.waiting&&!G.over?'<div class="card"><button class="p" data-go="1">Próxima jogada: '+NM[G.turn]+' ▶</button></div>':'')+'<div class="card log">'+G.logs.slice(-8).map(x=>'<div>'+x+'</div>').join('')+'</div>';
+ if(G.over)h+=report();
+ $('#app').innerHTML=h;fit();
+}
+function aiAct(){if(G.over||G.turn==0)return;G.waiting=false;const m=moves(G.turn).length?aiPick(G.turn):null;m?play(G.turn,m):pass(G.turn);step()}
+function fit(){const s=document.querySelector('.sq'),g=document.querySelector('.stage');if(s&&g)g.style.transform=`scale(${s.clientWidth/760})`}
+addEventListener('resize',fit);
+function boardHtml(){
+ const U=36,LIM=322,items=[],c=G.nl;
+ items.push({n:6,f:6,d:[1,0],dbl:1,c:[0,0],t:G.board[c]});
+ const arm=(ts,d,ni)=>{let H=[d[0]*U/2,d[1]*U/2];
+  ts.forEach(t=>{const dbl=t[0]==t[1],len=dbl?U:2*U;
+   let ex=H[0]+d[0]*len,ey=H[1]+d[1]*len;
+   if(Math.abs(ex)>LIM||Math.abs(ey)>LIM){const nd=[-d[1],d[0]];H=[H[0]+(d[0]+nd[0])*U/2,H[1]+(d[1]+nd[1])*U/2];d=nd;ex=H[0]+d[0]*len;ey=H[1]+d[1]*len}
+   items.push({n:t[ni],f:t[1-ni],d,dbl,c:[H[0]+d[0]*len/2,H[1]+d[1]*len/2],t});H=[ex,ey]})};
+ arm(G.board.slice(c+1),[1,0],0);arm(G.board.slice(0,c).reverse(),[-1,0],1);
+ return items.map(o=>{const hz=(o.d[0]!=0)!=!!o.dbl,w=hz?2*U:U,h=hz?U:2*U;
+  const fd=o.dbl?(o.d[0]?'column':'row'):o.d[0]>0?'row':o.d[0]<0?'row-reverse':o.d[1]>0?'column':'column-reverse';
+  return `<span class="t ${fd.startsWith('column')?'v':''} ${o.t===G.last?'last':''}" style="left:${380+o.c[0]-w/2}px;top:${380+o.c[1]-h/2}px;width:${w}px;height:${h}px;flex-direction:${fd}">${half(o.n)}<i></i>${half(o.f)}</span>`}).join('');
+}
+function report(){
+ const w=G.res.w,d=G.dec,H=G.hist,ok=d.filter(x=>x.gap<=5).length;
+ const GR={eu:['peso','dobre','forte'],par:['parceiro-passou','cobriu-parceiro','apoio'],riv:['trava','esgotado','abre-rival']};
+ const GN={eu:'Sua mão: descarte e naipe forte',par:'Parceiro: proteger e apoiar',riv:'Rivais: ler e travar'};
+ const sc={eu:[0,0],par:[0,0],riv:[0,0]};
+ d.forEach(x=>{const bk=x.b.e.r,ck=x.c.e.r;for(const g in GR)GR[g].forEach(k=>{
+  const bp=bk.some(r=>r.k==k&&r.p>0),cp=ck.some(r=>r.k==k&&r.p>0),cn=ck.some(r=>r.k==k&&r.p<0)&&!bk.some(r=>r.k==k&&r.p<0);
+  if(bp){sc[g][1]++;if(cp)sc[g][0]++}else if(cn)sc[g][1]++})});
+ const pc=g=>sc[g][1]?Math.round(100*sc[g][0]/sc[g][1]):null;
+ const bars=Object.keys(GR).map(g=>`<div class="k"><span>${GN[g]}</span><div class="bar"><span style="width:${pc(g)??0}%"></span></div><b>${pc(g)==null?'—':pc(g)+'%'}</b></div>`).join('');
+ const ev=[];H.forEach((e,i)=>{if(e.k!='p')return;let j=i-1;while(j>0&&H[j].k!='m')j--;ev.push({e,c:H[j]})});
+ const rp=ev.filter(x=>x.e.s%2).length,tp=ev.length-rp,mine=ev.filter(x=>x.e.s%2&&x.c.s==0).length,self=ev.filter(x=>x.e.s==2&&x.c.s==0).length;
+ const bp=[0,0];H.forEach((e,i)=>{if(e.k=='m'&&[1,2,3].every(q=>H[i+q]&&H[i+q].k=='p'))bp[e.s%2]++});
+ const pl=[0,1,2,3].map(s=>`${NM[s]} ${H.filter(e=>e.k=='m'&&e.s==s).length}`).join(' · ');
+ const ph=[['Abertura',0,8],['Meio de jogo',8,20],['Final',20,99]].map(([n,a,b])=>{const z=d.filter(x=>x.ply>=a&&x.ply<b);return z.length?`${n}: ${z.filter(x=>x.gap<=5).length} de ${z.length} decisões boas`:null}).filter(Boolean).join(' · ');
+ const mm=ev.slice(0,8).map(x=>`<li><span class="${x.e.s%2?'g':'b'}">${NM[x.e.s]} passou</span> (pontas ${x.e.L} e ${x.e.R}), depois de ${NM[x.c.s]} jogar ${x.c.t.join('-')}</li>`).join('');
+ const sm=h=>h.reduce((a,t)=>a+t[0]+t[1],0),tl2=h=>h.map(t=>t.join('-')).join(' ');
+ const hs=G.init.map((h,s)=>`<div><b>${NM[s]}</b> (${sm(h)} pts): ${tl2(h)}</div>`).join('');
+ const tmh=[...G.init[0],...G.init[2]],rvh=[...G.init[1],...G.init[3]];
+ const dom=[0,1,2,3,4,5,6].map(n=>[n,cnt(tmh,n),cnt(rvh,n)]).sort((a,b)=>Math.abs(b[1]-b[2])-Math.abs(a[1]-a[2])).slice(0,2).filter(x=>x[1]!=x[2]).map(([n,a,b])=>a>b?`seu time tinha ${a} pedras de ${n} contra ${b} dos rivais`:`os rivais tinham ${b} pedras de ${n} contra ${a} do seu time`).join('; ');
+ const left=G.hands.map((h,s)=>`${NM[s]}: ${h.length?tl2(h)+' ('+sm(h)+' pts)':'sem pedras'}`).join(' · ');
+ const bad=d.filter(x=>x.gap>1.5).sort((a,b)=>b.gap-a.gap).slice(0,5).sort((a,b)=>a.n-b.n);
+ const li=bad.map(x=>{const[lab,cl]=cls(x.gap),b=x.b,c=x.c;
+  const known=x.ps.map((p,s)=>s?`${NM[s]}: ${p||'nenhum'}`:'').filter(Boolean).join(' · ');
+  const low=x.un.map((u,n)=>u<=2?`${n}→${u}`:'').filter(Boolean).join(', ');
+  const aft=[];for(let j=x.ply+1;j<H.length&&H[j].k=='p';j++)aft.push(NM[H[j].s]);
+  const bt=b.e.r.filter(r=>r.p>0).sort((p,q)=>q.p-p.p).slice(0,2).map(r=>r.x).join('; ')||'rendia mais vantagem no total';
+  const ct=c.e.r.filter(r=>r.p<0).map(r=>r.x).join('; ');
+  return `<li><b class="${cl}">Decisão ${x.n} (${lab}).</b> Mão: ${x.h}. Pontas: ${x.ends[0]} e ${x.ends[1]}.<br><span class="mut">Passes até ali — ${known}.${low?' Pedras ainda com os outros (número→qtd): '+low+'.':''}</span><br>Você jogou ${c.x.o.join('-')} (${c.x.sd=='L'?'esq.':'dir.'})${ct?', que '+ct:''}. Reação da mesa: ${aft.length?aft.join(' e ')+' passou':'ninguém passou'}.<br>Melhor: ${b.x.o.join('-')} (${b.x.sd=='L'?'esq.':'dir.'}), pois ${bt}.</li>`}).join('');
+ const gs=Object.keys(GR).filter(g=>pc(g)!=null).sort((a,b)=>pc(a)-pc(b)),wk=gs[0],bst=gs[gs.length-1];
+ const plan=wk&&pc(wk)<100?GR[wk].map(k=>`<li>${P[k]}</li>`).join(''):'';
+ return `<div class="card"><h2 style="margin:0 0 6px;font-size:18px">${w==0?'Vitória do seu time!':w==1?'Os rivais venceram':'Empate'}</h2><div class="mut">${G.res.msg}</div>
+ <p>${d.length?`Decisões com escolha real: ${d.length}. Ótimas ou boas: ${ok} (${Math.round(100*ok/d.length)}%). ${ph}.`:'Poucas decisões reais nesta partida (muitas jogadas forçadas).'}</p></div>
+ <div class="card"><h3>Seus três objetivos</h3><div class="mut" style="font-size:13px">Uma pesquisa acadêmica sobre agentes de dominó em duplas concluiu que vence mais quem equilibra três metas: a própria mão, o parceiro e o bloqueio dos rivais. A barra mostra em quantas oportunidades você escolheu a jogada que cumpria cada meta.</div>${bars}${bst&&wk!=bst&&pc(bst)>=70?`<div class="g">Ponto forte: ${GN[bst].split(':')[0].toLowerCase()}.</div>`:''}</div>
+ <div class="card"><h3>O jogo inteiro</h3><p>Passes: seu time ${tp}, rivais ${rp}. Rivais travados logo após jogadas suas: ${mine}. Vezes em que sua jogada deixou o parceiro sem opção: ${self}.${bp[0]?` Mesa travada a seu favor (os três seguintes passaram): ${bp[0]}.`:''}${bp[1]?` Mesa travada contra você: ${bp[1]}.`:''}<br><span class="mut">Pedras jogadas: ${pl}.</span></p>${mm?`<b>Lances com passe</b><ul>${mm}</ul>`:''}</div>
+ <div class="card"><h3>Mãos reveladas</h3><div style="font-size:14px">${hs}</div><p class="mut">${dom?'Controle de naipes: '+dom+'. ':''}No fim sobraram: ${left}.</p></div>
+ <div class="card"><h3>Decisões para rever</h3>${li?`<ul>${li}</ul>`:'<p class="g">Nenhuma decisão ficou muito longe do ideal.</p>'}</div>
+ ${plan?`<div class="card"><h3>Para a próxima partida</h3><ul>${plan}</ul></div>`:''}
+ <div class="card mut" style="font-size:13px"><b>Como julgamos.</b> Cada jogada sua é comparada com todas as legais, usando só o que a mesa mostrava naquele momento: passes de todos, contagem de pedras, pontas abertas por cada jogador, peso e dobres. As mãos reveladas servem para você conferir depois e não entram na nota. Base: guias de inferência e passes (rarepike.com), dominó de duplas no Caribe (pagat.com), relato de sala de aula sobre contar as sete pedras de cada número (GPEF/USP) e dissertão da UFAM sobre as três metas do dominó em duplas. É uma heurística, não uma verdade absoluta.</div>`;
+}
+function oldReport(){
+ const w=G.res.w,d=G.dec,ok=d.filter(x=>x.gap<=5).length,mis={},hurt={};
+ d.forEach(x=>{if(x.gap>1.5){const ck=new Set(x.c.e.r.map(r=>r.k));x.b.e.r.filter(r=>r.p>0&&r.k!='peso'||r.k=='peso'&&r.p>4).forEach(r=>{if(!ck.has(r.k))mis[r.k]=(mis[r.k]||0)+1});x.c.e.r.filter(r=>r.p<0).forEach(r=>hurt[r.k]=(hurt[r.k]||0)+1)}});
+ let h=`<div class="card"><h2 style="margin:0 0 6px;font-size:18px">${w==0?'Vitória do seu time!':w==1?'Os rivais venceram':'Empate'}</h2><div class="mut">${G.res.msg}</div>`;
+ h+=`<p><b>Feedback das suas jogadas</b><br>${d.length?`Decisões com escolha real: ${d.length}. Ótimas ou boas: ${ok} (${Math.round(100*ok/d.length)}%).`:'Você teve poucas decisões reais nesta partida (muitas jogadas forçadas).'}</p>`;
+ const bad=d.filter(x=>x.gap>5).sort((a,b)=>b.gap-a.gap).slice(0,5);
+ if(bad.length){h+='<ul>';bad.forEach(x=>{const b=x.b,c=x.c,[lab,cl]=cls(x.gap);
+  const bt=b.e.r.filter(r=>r.p>0).sort((p,q)=>q.p-p.p).slice(0,2).map(r=>r.x).join('; ')||'rendia mais vantagem no total';
+  const ct=c.e.r.filter(r=>r.p<0).map(r=>r.x).join('; ');
+  h+=`<li><b class="${cl}">Decisão ${x.n}: ${lab}.</b> Mão: ${x.h}.<br>Você jogou ${c.x.o.join('-')} na ponta ${c.x.sd=='L'?'esquerda':'direita'}${ct?' e '+ct:''}. Melhor: ${b.x.o.join('-')} na ponta ${b.x.sd=='L'?'esquerda':'direita'}, que ${bt}.</li>`});h+='</ul>'}
+ else if(d.length)h+='<p class="g">Nenhum erro relevante: suas escolhas ficaram próximas do que o avaliador considera ideal.</p>';
+ const tags=Object.entries(hurt).map(([k,n])=>[k,n*2]).concat(Object.entries(mis)).sort((a,b)=>b[1]-a[1]).filter((v,i,a)=>a.findIndex(z=>z[0]==v[0])==i).slice(0,3);
+ if(tags.length)h+='<b>O que treinar</b><ul>'+tags.map(([k])=>`<li>${P[k]}</li>`).join('')+'</ul>';
+ h+='<div class="mut" style="font-size:13px">Como julgo: cada jogada sua é comparada com todas as legais, usando peso das pedras, dobres, passes lidos, naipe forte, ponta do parceiro e números esgotados. Isso é uma heurística, não a verdade absoluta.</div></div>';
+ return h;
+}
+$('#app').addEventListener('click',e=>{
+ if(e.target.closest('[data-go]')){if(G.waiting&&!G.over)aiAct();return}
+ if(G.over||G.turn!=0)return;const ms=moves(0);
+ const mb=e.target.closest('[data-m]');if(mb){userPlay(ms[+mb.dataset.m]);return}
+ const th=e.target.closest('[data-i]');if(!th)return;const i=+th.dataset.i,o=ms.filter(m=>m.i==i);if(!o.length)return;
+ if(o.length==1||G.L==G.R)userPlay(o[o.length-1]);else{G.sel=i;render()}
+});
+$('#sp').onchange=()=>{if(G.waiting&&+$('#sp').value)aiAct()};$('#nw').onclick=newGame;$('#df').onchange=newGame;newGame();
+</script></body></html>
