@@ -45,27 +45,42 @@ li{margin:6px 0}
 .k{display:grid;grid-template-columns:minmax(120px,210px) 1fr 44px;gap:8px;align-items:center;margin:6px 0;font-size:14px}
 .bar{height:9px;background:var(--bd);border-radius:5px;overflow:hidden}.bar span{display:block;height:100%;background:var(--ac)}
 .card h3{font-size:16px;margin:0 0 6px}
+.modal{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;z-index:50;padding:12px}.modal.on{display:flex}
+.modal .card{width:min(100%,420px);margin:0;max-height:100%;overflow:auto}.modal label{display:grid;gap:4px;margin:10px 0;font-size:14px}.modal select{width:100%}
+.sb{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;padding:6px 12px}.sb b{font-size:18px}
+table.tb{border-collapse:collapse;width:100%;font-size:13px}table.tb td,table.tb th{border-bottom:1px solid var(--bd);padding:3px 6px;text-align:center}table.tb td:last-child,table.tb th:last-child{text-align:left}
+.tbw{max-height:180px;overflow:auto}
+.play.cp{--tb:min(calc(100vw - 140px),calc(100svh - 360px),620px)}
+.ov button.sm{font-size:14px;padding:6px 12px;min-width:0;animation:none;background:transparent;color:#fff;border-color:#fff8}
 </style></head><body><main>
 <h1>Simulador de Dominó</h1>
-<details class="mut"><summary>Regras</summary>Dobre-seis, 7 pedras cada. Duplas (2 × 2): sem compra; quem tem o 6-6 abre. Solo (1 × 1): as 14 pedras restantes formam o monte e você compra quando não tiver jogada; abre quem tiver o maior dobre. Vence quem bate primeiro ou, se o jogo fechar, quem ficar com menos pontos na mão.</details>
-<div class="card row"><label>Dificuldade <select id="df"><option value="0">Fácil</option><option value="1">Médio</option><option value="2" selected>Difícil</option></select></label><label>Velocidade <select id="sp"><option value="0">Manual (eu avanço)</option><option value="2600">Lenta</option><option value="1500" selected>Normal</option><option value="700">Rápida</option></select></label><button class="p" id="nw">Nova partida</button></div>
+<details class="mut"><summary>Regras</summary>Dobre-seis, 7 pedras cada. Duplas (2 × 2): sem compra; quem tem o 6-6 abre. Solo (1 × 1): as 14 pedras restantes formam o monte e você compra quando não tiver jogada; abre quem tiver o maior dobre. Vence quem bate primeiro ou, se o jogo fechar, quem ficar com menos pontos na mão. Competição: partidas seguidas até 100 pontos. Quem bate marca os pontos das pedras que sobraram com os adversários; no jogo fechado vence a dupla com menos pontos e marca os pontos dos adversários (no solo, a diferença); empate não pontua. Na partida seguinte abre quem venceu, com qualquer pedra. Em Configurações você escolhe o sentido da mesa e a saída (carreta ou livre).</details>
+<div class="card row"><button class="p" id="nw">Nova partida</button><button id="cg">⚙ Configurações</button></div>
+<div id="cfg" class="modal"><div class="card"><h3>Configurações</h3>
+<label>Dificuldade do robô<select id="df"><option value="0">Fácil</option><option value="1">Médio</option><option value="2" selected>Difícil</option></select></label>
+<label>Velocidade das jogadas<select id="sp"><option value="0">Manual (eu avanço)</option><option value="2600">Lenta</option><option value="1500" selected>Normal</option><option value="700">Rápida</option></select></label>
+<label>Sentido da mesa<select id="dir"><option value="1" selected>Anti-horário (padrão)</option><option value="3">Horário</option></select></label>
+<label>Saída<select id="opn"><option value="carreta" selected>Carreta: quem tem o 6-6 abre</option><option value="livre">Saída livre: sorteio e qualquer pedra</option></select></label>
+<div class="mut" style="font-size:13px">Dificuldade e velocidade valem na hora. Sentido e saída valem a partir da próxima partida. Na competição, depois da primeira partida abre quem venceu, com qualquer pedra.</div>
+<div class="row" style="margin-top:10px"><button class="p" id="cfgx">Fechar</button></div></div></div>
 <div id="app"></div>
 </main>
 <script>
 let NM=['Você','Rival D','Parceiro','Rival E'];
 const P={dobre:'Jogue os dobres cedo: só encaixam em um número e, presos na mão, podem impedir você de bater.',trava:'Leia os passes: se um rival passou em um número, deixe esse número aberto para travá-lo.','parceiro-passou':'Não deixe aberto um número em que seu parceiro passou: você trava seu próprio time.','cobriu-parceiro':'Evite cobrir a ponta que seu parceiro abriu: ele provavelmente tem pedras desse naipe.',forte:'Deixe nas pontas os números em que você é forte; nas duplas, jogue de forma coerente para o parceiro entender sua mão.',lider:'Quando um adversário está perto de bater, leve o jogo para números em que ele já passou.',esgotado:'Conte as pedras: com um número esgotado, a ponta fica morta e pode levar ao fechamento.',bater:'Quando dá para bater, bata.',apoio:'Devolva ao parceiro os números que ele abriu: quem abre um número costuma ter outras pedras dele.','abre-rival':'Evite deixar aberto o número que um rival acabou de abrir: provavelmente é o naipe forte dele.',peso:'Descarte pedras pesadas cedo: se o jogo fechar, cada ponto na mão conta contra você.'};
-let G;const $=s=>document.querySelector(s);
+let G,M=null;const nx=s=>G.solo?(s+2)%4:(s+(G.dir||1))%4;const $=s=>document.querySelector(s);
 const cnt=(h,n)=>h.filter(t=>t[0]==n||t[1]==n).length;
-function newGame(mode){NM=mode=='solo'?['Você','—','Robô','—']:['Você','Rival D','Parceiro','Rival E'];
+function newGame(mode,comp){if(comp)M.n++;NM=mode=='solo'?['Você','—','Robô','—']:['Você','Rival D','Parceiro','Rival E'];
  let all=[];for(let a=0;a<7;a++)for(let b=a;b<7;b++)all.push([a,b]);
  for(let i=27;i>0;i--){const j=Math.floor(Math.random()*(i+1));[all[i],all[j]]=[all[j],all[i]]}
  const solo=mode=='solo',srt=a=>a.sort((x,y)=>y[0]+y[1]-x[0]-x[1]);
  const hands=solo?[srt(all.slice(0,7)),[],srt(all.slice(7,14)),[]]:[0,1,2,3].map(k=>srt(all.slice(k*7,k*7+7))),mt=solo?all.slice(14):[];
  const al=hands.flat(),dbl=al.filter(t=>t[0]==t[1]).sort((a,b)=>b[0]-a[0])[0],op=dbl||al.slice().sort((a,b)=>b[0]+b[1]-a[0]-a[1]||b[0]-a[0])[0];
- const st=hands.findIndex(h=>h.includes(op));
- G={hands,mt,mt0:mt.map(t=>t.slice()),board:[op.slice()],nl:0,hist:[],init:hands.map(h=>h.map(t=>t.slice())),L:op[0],R:op[1],lo:st,ro:st,turn:solo?(st+2)%4:(st+1)%4,ps:[new Set,new Set,new Set,new Set],pl:[0,0,0,0,0,0,0],pc:0,logs:[],dec:[],over:false,sel:null,solo:mode=='solo',df:+$('#df').value,res:null};
- G.hands[st].splice(G.hands[st].indexOf(op),1);G.pl[op[0]]++;if(op[0]!=op[1])G.pl[op[1]]++;G.hist.push({k:'m',s:st,t:op.slice(),L0:op[0],R0:op[1],L1:op[0],R1:op[1]});
- log(`${NM[st]} abriu com ${op[0]}-${op[1]}`);render();step();
+ const dr=+$('#dir').value==3?3:1,act=solo?[0,2]:[0,1,2,3],lv=$('#opn').value=='livre',cm=comp&&M.n>1,free=cm||lv,st=cm?M.starter:lv?act[Math.floor(Math.random()*act.length)]:hands.findIndex(h=>h.includes(op));
+ G={hands,mt,mt0:mt.map(t=>t.slice()),board:free?[]:[op.slice()],nl:0,hist:[],init:hands.map(h=>h.map(t=>t.slice())),L:free?null:op[0],R:free?null:op[1],lo:st,ro:st,turn:free?st:solo?(st+2)%4:(st+dr)%4,ps:[new Set,new Set,new Set,new Set],pl:[0,0,0,0,0,0,0],pc:0,logs:[],dec:[],over:false,sel:null,solo:mode=='solo',comp:!!comp,st0:st,dir:dr,df:+$('#df').value,res:null};
+ if(comp&&M.n==1)M.starter=st;
+ if(free)log(cm?`${NM[st]} abre esta partida com a pedra que quiser`:`Sorteio: ${NM[st]} abre com a pedra que quiser`);else{G.hands[st].splice(G.hands[st].indexOf(op),1);G.pl[op[0]]++;if(op[0]!=op[1])G.pl[op[1]]++;G.hist.push({k:'m',s:st,t:op.slice(),L0:op[0],R0:op[1],L1:op[0],R1:op[1]});
+ log(`${NM[st]} abriu com ${op[0]}-${op[1]}`)}render();step();
 }
 function log(s){G.logs.push(s)}
 function moves(s){const o=[];G.hands[s].forEach((t,i)=>{const[a,b]=t;[['L',G.L],['R',G.R]].forEach(([sd,e])=>{
@@ -101,24 +116,80 @@ function play(s,m){
  if(m.sd=='L'){G.board.unshift(m.o);G.nl++;G.L=m.o[0];G.lo=s}else{G.board.push(m.o);G.R=m.o[1];G.ro=s}G.last=m.o;
  G.pl[t[0]]++;if(t[0]!=t[1])G.pl[t[1]]++;G.pc=0;G.dr=0;G.hist.push({k:'m',s,t:[t[0],t[1]],sd:m.sd,L0,R0,L1:G.L,R1:G.R});log(`${NM[s]} jogou ${t[0]}-${t[1]}`);
  if(!G.hands[s].length){finish(G.solo?s:s%2,`${NM[s]} bateu${G.solo?` (o adversário ficou com ${G.hands[(s+2)%4].reduce((x,t)=>x+t[0]+t[1],0)} pontos)`:''}`);return}
- G.turn=G.solo?(s+2)%4:(s+1)%4;
+ G.turn=nx(s);
 }
 function pass(s){G.ps[s].add(G.L);G.ps[s].add(G.R);G.pc++;G.hist.push({k:'p',s,L:G.L,R:G.R});log(`${NM[s]} passou`);
  if(G.pc>=(G.solo?2:4)){if(G.solo){const sm=[0,2].map(i=>G.hands[i].reduce((x,t)=>x+t[0]+t[1],0));finish(sm[0]<sm[1]?0:sm[1]<sm[0]?2:-1,`Jogo fechado: você ${sm[0]} pontos × robô ${sm[1]} pontos`);return}const sm=k=>[k,k+2].reduce((a,q)=>a+G.hands[q].reduce((x,t)=>x+t[0]+t[1],0),0),a=sm(0),b=sm(1);
   finish(a<b?0:b<a?1:-1,`Jogo fechado: sua dupla ${a} pontos × rivais ${b} pontos`);return}
- G.turn=G.solo?(s+2)%4:(s+1)%4;G.dr=0}
-function finish(w,msg){G.over=true;G.res={w,msg};log(msg);}
+ G.turn=nx(s);G.dr=0}
+function finish(w,msg){G.over=true;G.res={w,msg};log(msg);if(G.comp)scoreRound(w)}
+function openPlay(s,i){const t=G.hands[s].splice(i,1)[0];G.board=[t.slice()];G.nl=0;G.L=t[0];G.R=t[1];G.lo=G.ro=s;G.last=G.board[0];G.pl[t[0]]++;if(t[0]!=t[1])G.pl[t[1]]++;G.pc=0;G.hist.push({k:'m',s,t:t.slice(),L0:t[0],R0:t[1],L1:t[0],R1:t[1],open:1});log(`${NM[s]} abriu com ${t[0]}-${t[1]}`);G.turn=nx(s)}
+function aiOpen(s){const h=G.hands[s];if(G.df==0)return Math.floor(Math.random()*h.length);let b=0,bs=-1;h.forEach((t,i)=>{const v=cnt(h,t[0])+(t[0]==t[1]?3:cnt(h,t[1]))+(t[0]+t[1])*.1+(G.df==1?Math.random()*2:0);if(v>bs){bs=v;b=i}});return b}
+function scoreRound(w){
+ const SE=G.solo?[0,2]:[0,1,2,3],Pp=s=>G.hands[s].reduce((a,t)=>a+t[0]+t[1],0),tp=k=>G.solo?Pp(k*2):Pp(k)+Pp(k+2);
+ const out=SE.find(s=>!G.hands[s].length),kind=out!=null?'out':'block',tw=w<0?-1:G.solo?(w==0?0:1):w;
+ let pts=0;if(tw>=0){const lo=tp(1-tw),wi=tp(tw);pts=kind=='block'&&G.solo?lo-wi:lo}
+ const r={n:M.n,kind,tw,pts,pips:[tp(0),tp(1)],out,starter:G.st0,dec:G.dec,hist:G.hist};
+ if(tw>=0)M.sc[tw]+=pts;r.sc=M.sc.slice();M.rounds.push(r);
+ if(tw>=0)M.starter=out!=null?out:G.solo?tw*2:[0,1,2,3].filter(s=>s%2==tw).sort((a,b)=>Pp(a)-Pp(b))[0];
+ if(tw>=0&&M.sc[tw]>=M.target){M.over=true;M.winner=tw;M.pollona=M.sc[1-tw]==0;M.viajera=pts>=100}
+ G.res.pts=pts}
+function sbHtml(){const so=M.mode=='solo';return `<div class="card sb"><span>Partida <b>${M.n}</b> · meta ${M.target}</span><span>${so?'Você':'Nós'} <b>${M.sc[0]}</b> × <b>${M.sc[1]}</b> ${so?'Robô':'Eles'}</span></div>`}
+function sbCard(){const so=M.mode=='solo',a=so?'Você':'Nós',b=so?'Robô':'Eles';
+ const rows=M.rounds.map(r=>`<tr><td>${r.n}</td><td>${r.tw==0?'+'+r.pts:''}</td><td>${r.tw==1?'+'+r.pts:''}</td><td>${r.sc[0]} × ${r.sc[1]}</td><td>${r.tw<0?'empate, ninguém pontua':r.kind=='out'?NM[r.out]+' bateu':'jogo fechado'}</td></tr>`).join('');
+ return `<div class="card"><h3>Quadro de pontos · meta ${M.target}</h3><div class="tbw"><table class="tb"><tr><th>#</th><th>${a}</th><th>${b}</th><th>Total</th><th>Como</th></tr>${rows||'<tr><td colspan="5" class="mut">Nenhuma partida concluída ainda.</td></tr>'}</table></div></div>`}
+function roundEnd(){const r=M.rounds[M.rounds.length-1],so=M.mode=='solo';
+ const who=r.tw==0?(so?'Você marcou':'Seu time marcou'):(so?'O robô marcou':'Os rivais marcaram');
+ let h=`<div class="card"><h2 style="margin:0 0 6px;font-size:18px">Partida ${r.n}: ${r.tw<0?'empate, ninguém pontua':who+' '+r.pts+' ponto'+(r.pts==1?'':'s')}</h2><div class="mut">${G.res.msg}</div></div>`+sbCard();
+ return h+(M.over?matchReport():`<div class="card"><button class="p" data-next="1">Próxima partida ▶</button> <span class="mut">Abre ${NM[M.starter]}${M.starter==0?': você escolhe a primeira pedra':''}.</span></div>`)}
+function goals(d,so){
+ const GR={eu:['peso','dobre','forte'],par:['parceiro-passou','cobriu-parceiro','apoio'],riv:['trava','lider','esgotado','abre-rival']};
+ const GN={eu:'Sua mão: descarte e naipe forte',par:'Parceiro: proteger e apoiar',riv:'Rivais: ler e travar'};
+ const sc={eu:[0,0],par:[0,0],riv:[0,0]};
+ d.forEach(x=>{const bk=x.b.e.r,ck=x.c.e.r;for(const g in GR)GR[g].forEach(k=>{
+  const bp=bk.some(r=>r.k==k&&r.p>0),cp=ck.some(r=>r.k==k&&r.p>0),cn=ck.some(r=>r.k==k&&r.p<0)&&!bk.some(r=>r.k==k&&r.p<0);
+  if(bp){sc[g][1]++;if(cp)sc[g][0]++}else if(cn)sc[g][1]++})});
+ const pc=g=>sc[g][1]?Math.round(100*sc[g][0]/sc[g][1]):null;
+ const bars=Object.keys(GR).filter(g=>!(so&&g=='par')).map(g=>`<div class="k"><span>${GN[g]}</span><div class="bar"><span style="width:${pc(g)??0}%"></span></div><b>${pc(g)==null?'—':pc(g)+'%'}</b></div>`).join('');
+ const gs=Object.keys(GR).filter(g=>pc(g)!=null).sort((a,b)=>pc(a)-pc(b)),wk=gs[0];
+ return{bars,plan:wk&&pc(wk)<100?GR[wk].map(k=>`<li>${P[k]}</li>`).join(''):''}}
+function matchReport(){
+ const so=M.mode=='solo',R=M.rounds,d=R.flatMap(r=>r.dec.map(x=>({...x,rn:r.n}))),ok=d.filter(x=>x.gap<=5).length,g=goals(d,so);
+ const won=R.filter(r=>r.tw==0),lost=R.filter(r=>r.tw==1),ties=R.filter(r=>r.tw<0),byOut=a=>a.filter(r=>r.kind=='out').length;
+ const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):0,rv=s=>so?s!=0:s%2==1;
+ const given=lost.reduce((a,r)=>a+r.pts,0),taken=won.reduce((a,r)=>a+r.pts,0);
+ const lostOut=lost.filter(r=>r.kind=='out'),lp=avg(lostOut.map(r=>r.pips[0]));
+ const pe=R.flatMap(r=>r.hist.filter(e=>e.k=='p')),myP=pe.filter(e=>!rv(e.s)).length,thP=pe.length-myP;
+ const forced=R.reduce((a,r)=>{let n=0;r.hist.forEach((e,i)=>{if(e.k=='p'&&rv(e.s)){let j=i-1;while(j>0&&r.hist[j].k!='m')j--;if(r.hist[j].s==0)n++}});return a+n},0);
+ const per=R.map(r=>{const okk=r.dec.filter(x=>x.gap<=5).length;return `<li><b>Partida ${r.n}:</b> ${r.tw<0?'empate':r.tw==0?'vitória':'derrota'}${r.tw>=0?` (${r.pts} pts)`:''}, ${r.kind=='out'?NM[r.out]+' bateu':'jogo fechado'}. Sobraram ${r.pips[0]} pts no seu lado e ${r.pips[1]} no dos adversários${r.dec.length?`; decisões boas: ${okk} de ${r.dec.length}`:''}.</li>`}).join('');
+ const bad=d.filter(x=>x.gap>5).sort((a,b)=>b.gap-a.gap).slice(0,5).length?d.filter(x=>x.gap>5).sort((a,b)=>b.gap-a.gap).slice(0,5):d.filter(x=>x.gap>1.5).sort((a,b)=>b.gap-a.gap).slice(0,3);
+ const li=bad.map(x=>{const[lab,cl]=cls(x.gap),b=x.b,c=x.c,H=x.hr;
+  const known=x.ps.map((p,s)=>s?`${NM[s]}: ${p||'nenhum'}`:'').filter(Boolean).join(' · ');
+  const aft=[];for(let j=x.ply+1;j<H.length&&H[j].k=='p';j++)aft.push(NM[H[j].s]+(H[j].d?' comprou':' passou'));
+  const bt=b.e.r.filter(r=>r.p>0).sort((p,q)=>q.p-p.p).slice(0,2).map(r=>r.x).join('; ')||'rendia mais vantagem no total';
+  const ct=c.e.r.filter(r=>r.p<0).map(r=>r.x).join('; ');
+  return `<li><b class="${cl}">Partida ${x.rn}, decisão ${x.n} (${lab}).</b> Mão: ${x.h}. Pontas: ${x.ends[0]} e ${x.ends[1]}.<br><span class="mut">Passes até ali — ${known}.</span><br>Você jogou ${c.x.o.join('-')}${ct?', que '+ct:''}. Reação da mesa: ${aft.length?aft.join(' e '):'ninguém passou'}.<br>Melhor: ${b.x.o.join('-')}, pois ${bt}.</li>`}).join('');
+ const wl=won.length?won.reduce((a,r)=>r.pts>a.pts?r:a):null,ll=lost.length?lost.reduce((a,r)=>r.pts>a.pts?r:a):null;
+ return `<div class="card"><h2 style="margin:0 0 6px;font-size:18px">${M.winner==0?(so?'Você venceu a competição!':'Sua dupla venceu a competição!'):(so?'O robô venceu a competição':'Os rivais venceram a competição')}</h2><div class="mut">Placar final ${M.sc[0]} × ${M.sc[1]} em ${R.length} partidas.${M.pollona?' Foi uma pollona: o vencedor chegou aos 100 sem o adversário marcar ponto.':''}${M.viajera?' Foi uma viajera: os 100 pontos vieram de uma única partida.':''}</div></div>
+<div class="card"><h3>Visão geral</h3><p>Vitórias: ${won.length} · derrotas: ${lost.length}${ties.length?' · empates: '+ties.length:''}. Por batida: ${byOut(won)} vitórias e ${byOut(lost)} derrotas. Por jogo fechado: ${won.length-byOut(won)} vitórias e ${lost.length-byOut(lost)} derrotas.<br>Pontos marcados: ${taken}. Pontos cedidos: ${given}.${wl?` Sua melhor partida rendeu ${wl.pts} pontos (partida ${wl.n}).`:''}${ll?` A mais cara custou ${ll.pts} (partida ${ll.n}).`:''}</p>${lostOut.length?`<p>Nas derrotas por batida adversária, seu lado ficou em média com ${lp} pontos nas mãos${lp>=25?': descartar pedras pesadas mais cedo reduz o prejuízo.':'.'}</p>`:''}</div>
+<div class="card"><h3>${so?'Seus objetivos':'Seus três objetivos'} na competição</h3><div class="mut">${d.length?`Decisões com escolha real: ${d.length}. Ótimas ou boas: ${ok} (${Math.round(100*ok/d.length)}%).`:'Poucas decisões reais, com muitas jogadas forçadas.'}</div>${g.bars}</div>
+<div class="card"><h3>Passes e pressão</h3><p>Vezes em que seu lado ${so?'comprou ou passou':'passou'}: ${myP}. Dos adversários: ${thP}. Adversários sem jogada logo depois de uma jogada sua: ${forced}.</p></div>
+<div class="card"><h3>Partida a partida</h3><ul>${per}</ul></div>
+<div class="card"><h3>Decisões para rever</h3>${li?`<ul>${li}</ul>`:'<p class="g">Nenhuma decisão ficou muito longe do ideal.</p>'}</div>
+${g.plan?`<div class="card"><h3>Para a próxima competição</h3><ul>${g.plan}</ul></div>`:''}
+<div class="card"><button class="p" data-newcomp="1">Nova partida ou competição</button></div>`}
+
 function step(){
  if(G.over){render();return}
  render();
- if(G.turn==0){if(!moves(0).length&&!(G.solo&&G.mt.length)){const g=G;setTimeout(()=>{if(G===g){pass(0);step()}},1000)}}
+ if(G.turn==0){}
  else{const sp=+$('#sp').value,g=G;if(!sp){G.waiting=true;render()}else setTimeout(()=>{if(G===g)aiAct()},sp)}
 }
 function userPlay(m){
  const ms=moves(0),keys=new Set(ms.map(x=>x.i+':'+endOf(x)+':'+(x.sd=='L'?G.R:G.L)));
  if(keys.size>1){
   const all=ms.map(x=>({x,e:ev(0,x,true)})),best=all.reduce((a,b)=>b.e.s>a.e.s?b:a),ch=all.find(a=>a.x==m)||all.find(a=>a.x.i==m.i&&a.x.sd==m.sd);
-  G.dec.push({n:G.dec.length+1,gap:best.e.s-ch.e.s,b:best,c:ch,h:G.hands[0].map(t=>t.join('-')).join(' '),ply:G.hist.length,ends:[G.L,G.R],ps:G.ps.map(z=>[...z].sort().join(',')),un:[0,1,2,3,4,5,6].map(n=>7-G.pl[n]-cnt(G.hands[0],n))});
+  G.dec.push({n:G.dec.length+1,gap:best.e.s-ch.e.s,b:best,c:ch,h:G.hands[0].map(t=>t.join('-')).join(' '),hr:G.hist,ply:G.hist.length,ends:[G.L,G.R],ps:G.ps.map(z=>[...z].sort().join(',')),un:[0,1,2,3,4,5,6].map(n=>7-G.pl[n]-cnt(G.hands[0],n))});
  }
  G.sel=null;play(0,m);step();
 }
@@ -127,33 +198,37 @@ const half=n=>`<span class="f">${PP[n].map(p=>`<u style="grid-area:${Math.ceil(p
 function tl(t,c=''){return `<span class="t ${c}">${half(t[0])}<i></i>${half(t[1])}</span>`}
 function cls(g){return g<=1.5?['Ótima','g']:g<=5?['Boa','g']:g<=10?['Imprecisa','b']:['Erro','b']}
 function mv(x,h){const t=h.find(()=>1);return x}
-function menu(){G={menu:true,over:false,turn:-1};render()}
+function menu(){M=null;G={menu:true,over:false,turn:-1,pick:null};render()}
 function renderMenu(){
+ const pk=G.pick,ovh=pk?`<div class="ov"><b>${pk=='dup'?'Duplas':'Solo'}: como quer jogar?</b><button class="p" data-fmt="casual">Casual<small>uma partida só, sem pontuação</small></button><button class="p" data-fmt="comp">Competição<small>várias partidas até ${pk=='dup'?'a dupla':'alguém'} marcar 100 pontos</small></button><button class="sm" data-back="1">‹ voltar</button></div>`:`<div class="ov"><b>Como você quer jogar?</b><button class="p" data-mode="dup">Duplas<small>você + parceiro contra 2 rivais</small></button><button class="p" data-mode="solo">Solo<small>você contra um robô, 1 × 1</small></button></div>`;
  const sd=c=>`<div class="sp ${c}"><div class="bks">${'<span class="bk"></span>'.repeat(7)}</div><div class="mut">7 pedras</div></div>`;
- $('#app').innerHTML=`<div class="play">${sd('top')}${sd('left')}<div class="sq"><div class="stage"></div><div class="ov"><b>Como você quer jogar?</b><button class="p" data-mode="dup">Duplas<small>você + parceiro contra 2 rivais</small></button><button class="p" data-mode="solo">Solo<small>você contra um robô, 1 × 1</small></button></div></div>${sd('right')}<div class="card hd mut">Escolha um modo no centro da mesa para começar.</div></div>`;
+ $('#app').innerHTML=`<div class="play">${sd('top')}${sd('left')}<div class="sq"><div class="stage"></div>${ovh}</div>${sd('right')}<div class="card hd mut">Escolha um modo no centro da mesa para começar.</div></div>`;
  fit();
 }
 function render(){if(G.menu){renderMenu();return}
  const seat=(s,c,lab)=>`<div class="sp ${c} ${G.turn==s&&!G.over?'on':''}"><div class="bks">${'<span class="bk"></span>'.repeat(G.hands[s].length)}</div><div class="mut">${lab} · ${G.hands[s].length}</div></div>`;
- let h='<div class="play">'+seat(2,'top',NM[2])+(G.solo?'':seat(3,'left',NM[3]))+'<div class="sq"><div class="stage">'+boardHtml()+'</div></div>'+(G.solo?`<div class="sp right"><div class="bks">${'<span class="bk"></span>'.repeat(G.mt.length)}</div><div class="mut">Monte · ${G.mt.length}</div></div>`:seat(1,'right',NM[1]));
- const ms=G.turn==0&&!G.over?moves(0):[];
- h+='<div class="card hd"><b>Sua mão</b> <span class="mut">(pontas '+G.L+' e '+G.R+')</span> '+(G.over?'':G.turn==0?(ms.length?'· sua vez':G.solo&&G.mt.length?'· sem jogada: compre do monte':'· sem jogada, passando...'):'· aguarde');
- h+='<div class="row" id="hand">'+G.hands[0].map((t,i)=>`<span data-i="${i}">${tl(t,'h v '+(ms.some(m=>m.i==i)?'ok':''))}</span>`).join('')+'</div>';
- if(G.solo&&G.turn==0&&!G.over&&!ms.length&&G.mt.length)h+='<div class="row" style="margin-top:6px"><button class="p" data-draw="1">Comprar do monte ('+G.mt.length+')</button></div>';
+ let h=(G.comp?sbHtml():'')+'<div class="play'+(G.comp?' cp':'')+'">'+seat(2,'top',NM[2])+(G.solo?'':seat(3,'left',NM[3]))+'<div class="sq"><div class="stage">'+boardHtml()+'</div></div>'+(G.solo?`<div class="sp right"><div class="bks">${'<span class="bk"></span>'.repeat(G.mt.length)}</div><div class="mut">Monte · ${G.mt.length}</div></div>`:seat(1,'right',NM[1]));
+ const ms=G.turn==0&&!G.over?moves(0):[],op=G.turn==0&&!G.over&&!G.board.length;
+ h+='<div class="card hd"><b>Sua mão</b> <span class="mut">'+(G.board.length?'(pontas '+G.L+' e '+G.R+')':'')+'</span> '+(G.over?'':G.turn==0?(op?'· você abre a partida: escolha qualquer pedra':ms.length?'· sua vez':G.solo&&G.mt.length?'· sem jogada: compre do monte':'· sem jogada: passe a vez'):'· aguarde');
+ h+='<div class="row" id="hand">'+G.hands[0].map((t,i)=>`<span data-i="${i}">${tl(t,'h v '+((op||ms.some(m=>m.i==i))?'ok':''))}</span>`).join('')+'</div>';
+ if(G.solo&&G.turn==0&&!G.over&&G.board.length&&!ms.length&&G.mt.length)h+='<div class="row" style="margin-top:6px"><button class="p" data-draw="1">Comprar do monte ('+G.mt.length+')</button></div>';
+ if(G.turn==0&&!G.over&&G.board.length&&!ms.length&&!(G.solo&&G.mt.length))h+='<div class="row" style="margin-top:6px"><button class="p" data-pass="1">Passar a vez</button></div>';
  if(G.sel!=null){const o=ms.filter(m=>m.i==G.sel);h+='<div class="row" style="margin-top:8px">Em qual ponta? '+o.map((m,k)=>`<button class="p" data-m="${ms.indexOf(m)}">${m.sd=='L'?'Esquerda ('+G.L+')':'Direita ('+G.R+')'}</button>`).join('')+'</div>'}
  h+='</div>'+(G.waiting&&!G.over?'<div class="card hd"><button class="p" data-go="1">Próxima jogada: '+NM[G.turn]+' ▶</button></div>':'')+'</div><div class="card log">'+G.logs.slice(-8).map(x=>'<div>'+x+'</div>').join('')+'</div>';
- if(G.over)h+=report();
+ if(G.over)h+=G.comp?roundEnd():report();else if(G.comp)h+=sbCard();
  $('#app').innerHTML=h;fit();
 }
 function aiAct(){if(G.over||G.turn==0)return;G.waiting=false;const s=G.turn;
+ if(!G.board.length){openPlay(s,aiOpen(s));step();return}
  if(G.solo&&!moves(s).length&&G.mt.length){let n=0;G.ps[s].add(G.L);G.ps[s].add(G.R);while(!moves(s).length&&G.mt.length){G.hands[s].push(G.mt.pop());n++}G.hist.push({k:'p',s,L:G.L,R:G.R,d:n});log(`${NM[s]} comprou ${n} pedra${n>1?'s':''}`)}
  const m=moves(s).length?aiPick(s):null;m?play(s,m):pass(s);step()}
-function userDraw(){if(G.over||G.turn!=0||moves(0).length||!G.mt.length)return;
+function userDraw(){if(G.over||G.turn!=0||!G.board.length||moves(0).length||!G.mt.length)return;
  if(!G.dr){G.ps[0].add(G.L);G.ps[0].add(G.R);G.hist.push({k:'p',s:0,L:G.L,R:G.R,d:1})}else{const e=[...G.hist].reverse().find(z=>z.k=='p'&&z.s==0);e.d++}
  G.dr=(G.dr||0)+1;G.hands[0].push(G.mt.pop());G.hands[0].sort((a,b)=>b[0]+b[1]-a[0]-a[1]);log('Você comprou uma pedra');render();step()}
 function fit(){const s=document.querySelector('.sq'),g=document.querySelector('.stage');if(s&&g)g.style.transform=`scale(${s.clientWidth/760})`}
 addEventListener('resize',fit);
 function boardHtml(){
+ if(!G.board.length)return '';
  const c=G.nl,t0=G.board[c],d0=t0[0]==t0[1];
  const rc=(c,w,h)=>[c[0]-w/2,c[1]-h/2,c[0]+w/2,c[1]+h/2],hit=(a,b)=>a[0]<b[2]-1&&a[2]>b[0]+1&&a[1]<b[3]-1&&a[3]>b[1]+1;
  const lay=U=>{const LIM=372-1.5*U,items=[],rects=[],hl=(d0?U:2*U)/2;let ok=true;
@@ -231,13 +306,26 @@ function oldReport(){
  return h;
 }
 $('#app').addEventListener('click',e=>{
- const md=e.target.closest('[data-mode]');if(md){newGame(md.dataset.mode);return}
+ const md=e.target.closest('[data-mode]');if(md){G.pick=md.dataset.mode;render();return}
+ const fm=e.target.closest('[data-fmt]');if(fm){const m=G.pick;if(fm.dataset.fmt=='comp'){M={mode:m,sc:[0,0],rounds:[],n:0,starter:0,target:100,over:false};newGame(m,true)}else{M=null;newGame(m,false)}return}
+ if(e.target.closest('[data-back]')){G.pick=null;render();return}
+ if(e.target.closest('[data-next]')){newGame(M.mode,true);return}
+ if(e.target.closest('[data-newcomp]')){menu();return}
+ if(e.target.closest('[data-pass]')){if(!G.over&&G.turn==0&&G.board.length&&!moves(0).length&&!(G.solo&&G.mt.length)){pass(0);step()}return}
  if(e.target.closest('[data-draw]')){userDraw();return}
  if(e.target.closest('[data-go]')){if(G.waiting&&!G.over)aiAct();return}
- if(G.over||G.turn!=0)return;const ms=moves(0);
+ if(G.over||G.turn!=0)return;
+ if(!G.board.length){const t0=e.target.closest('[data-i]');if(t0){openPlay(0,+t0.dataset.i);step()}return}
+ const ms=moves(0);
  const mb=e.target.closest('[data-m]');if(mb){userPlay(ms[+mb.dataset.m]);return}
  const th=e.target.closest('[data-i]');if(!th)return;const i=+th.dataset.i,o=ms.filter(m=>m.i==i);if(!o.length)return;
  if(o.length==1||G.L==G.R)userPlay(o[o.length-1]);else{G.sel=i;render()}
 });
-$('#sp').onchange=()=>{if(G.waiting&&+$('#sp').value)aiAct()};$('#nw').onclick=menu;$('#df').onchange=menu;menu();
+const CFG=['df','sp','dir','opn'];
+try{const c=JSON.parse(localStorage.getItem('dominoCfg')||'{}');CFG.forEach(k=>{if(c[k]!=null)$('#'+k).value=c[k]})}catch(e){}
+CFG.forEach(k=>$('#'+k).onchange=()=>{try{localStorage.setItem('dominoCfg',JSON.stringify(Object.fromEntries(CFG.map(q=>[q,$('#'+q).value]))))}catch(e){}
+ if(k=='df'&&G&&!G.menu)G.df=+$('#df').value;if(k=='sp'&&G&&G.waiting&&+$('#sp').value)aiAct()});
+$('#cg').onclick=()=>$('#cfg').classList.add('on');$('#cfgx').onclick=()=>$('#cfg').classList.remove('on');
+$('#cfg').onclick=e=>{if(e.target.id=='cfg')$('#cfg').classList.remove('on')};
+$('#nw').onclick=menu;menu();
 </script></body></html>
