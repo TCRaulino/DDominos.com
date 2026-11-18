@@ -15,7 +15,7 @@ button.p{background:var(--ac);color:#fff;border-color:var(--ac)}
 .sq{position:relative;width:100%;max-width:780px;aspect-ratio:1;margin:10px auto;border:10px solid #6b4423;border-radius:20px;background:radial-gradient(circle at 50% 40%,#2f8059,#17442d);box-sizing:border-box;overflow:hidden;box-shadow:inset 0 0 30px #0006}
 .stage{position:absolute;left:0;top:0;width:760px;height:760px;transform-origin:0 0}
 .stage .t{position:absolute;box-sizing:border-box;margin:0}.stage .t.last{outline:3px solid #f5c542}
-.stage .f{flex:1;width:auto;height:auto;padding:3px;box-sizing:border-box}.stage .f u{width:7px;height:7px}
+.stage .f{flex:1;width:auto;height:auto;padding:3px;box-sizing:border-box}.stage .f u{width:var(--pp,7px);height:var(--pp,7px)}
 .stage .t i{margin:4px 0}.stage .t.v i{margin:0 4px}
 .play{--tb:min(calc(100vw - 140px),calc(100svh - 310px),620px);display:grid;grid-template-columns:62px var(--tb) 62px;grid-template-rows:auto var(--tb);justify-content:center;align-items:center;gap:6px}
 .play .sq{grid-column:2;grid-row:2;width:var(--tb);height:var(--tb);max-width:none;aspect-ratio:auto;margin:0}
@@ -154,17 +154,25 @@ function userDraw(){if(G.over||G.turn!=0||moves(0).length||!G.mt.length)return;
 function fit(){const s=document.querySelector('.sq'),g=document.querySelector('.stage');if(s&&g)g.style.transform=`scale(${s.clientWidth/760})`}
 addEventListener('resize',fit);
 function boardHtml(){
- const U=36,LIM=322,items=[],c=G.nl,t0=G.board[c],hl=(t0[0]==t0[1]?U:2*U)/2;
- items.push({n:t0[0],f:t0[1],d:[1,0],dbl:t0[0]==t0[1],c:[0,0],t:t0});
- const arm=(ts,d,ni)=>{let H=[d[0]*hl,d[1]*hl];
-  ts.forEach(t=>{const dbl=t[0]==t[1],len=dbl?U:2*U;
-   let ex=H[0]+d[0]*len,ey=H[1]+d[1]*len;
-   if(Math.abs(ex)>LIM||Math.abs(ey)>LIM){const nd=[-d[1],d[0]];H=[H[0]+(d[0]+nd[0])*U/2,H[1]+(d[1]+nd[1])*U/2];d=nd;ex=H[0]+d[0]*len;ey=H[1]+d[1]*len}
-   items.push({n:t[ni],f:t[1-ni],d,dbl,c:[H[0]+d[0]*len/2,H[1]+d[1]*len/2],t});H=[ex,ey]})};
- arm(G.board.slice(c+1),[1,0],0);arm(G.board.slice(0,c).reverse(),[-1,0],1);
- return items.map(o=>{const hz=(o.d[0]!=0)!=!!o.dbl,w=hz?2*U:U,h=hz?U:2*U;
+ const c=G.nl,t0=G.board[c],d0=t0[0]==t0[1];
+ const rc=(c,w,h)=>[c[0]-w/2,c[1]-h/2,c[0]+w/2,c[1]+h/2],hit=(a,b)=>a[0]<b[2]-1&&a[2]>b[0]+1&&a[1]<b[3]-1&&a[3]>b[1]+1;
+ const lay=U=>{const LIM=372-1.5*U,items=[],rects=[],hl=(d0?U:2*U)/2;let ok=true;
+  rects.push(rc([0,0],d0?U:2*U,d0?2*U:U));
+  items.push({n:t0[0],f:t0[1],d:[1,0],dbl:d0,c:[0,0],t:t0});
+  const arm=(ts,d,ni)=>{let H=[d[0]*hl,d[1]*hl];
+   ts.forEach(t=>{const dbl=t[0]==t[1],len=dbl?U:2*U;
+    const pl=(d,H)=>{const hz=(d[0]!=0)!=dbl,w=hz?2*U:U,h=hz?U:2*U,c=[H[0]+d[0]*len/2,H[1]+d[1]*len/2];return{c,r:rc(c,w,h),e:[H[0]+d[0]*len,H[1]+d[1]*len]}};
+    let p=pl(d,H);
+    if(Math.abs(d[0]?p.e[0]:p.e[1])>LIM||rects.some(q=>hit(p.r,q))){const nd=[-d[1],d[0]];H=[H[0]+(d[0]+nd[0])*U/2,H[1]+(d[1]+nd[1])*U/2];d=nd;p=pl(d,H)}
+    if(rects.some(q=>hit(p.r,q))||p.r.some(v=>Math.abs(v)>378))ok=false;
+    rects.push(p.r);items.push({n:t[ni],f:t[1-ni],d,dbl,c:p.c,t});H=p.e})};
+  arm(G.board.slice(c+1),[1,0],0);arm(G.board.slice(0,c).reverse(),[-1,0],1);
+  return{items,ok,U}};
+ let L;for(const U of [36,32,28,25,22,20]){L=lay(U);if(L.ok)break}
+ const U=L.U;
+ return L.items.map(o=>{const hz=(o.d[0]!=0)!=!!o.dbl,w=hz?2*U:U,h=hz?U:2*U;
   const fd=o.dbl?(o.d[0]?'column':'row'):o.d[0]>0?'row':o.d[0]<0?'row-reverse':o.d[1]>0?'column':'column-reverse';
-  return `<span class="t ${fd.startsWith('column')?'v':''} ${o.t===G.last?'last':''}" style="left:${380+o.c[0]-w/2}px;top:${380+o.c[1]-h/2}px;width:${w}px;height:${h}px;flex-direction:${fd}">${half(o.n)}<i></i>${half(o.f)}</span>`}).join('');
+  return `<span class="t ${fd.startsWith('column')?'v':''} ${o.t===G.last?'last':''}" style="left:${380+o.c[0]-w/2}px;top:${380+o.c[1]-h/2}px;width:${w}px;height:${h}px;flex-direction:${fd};--pp:${Math.round(U*.19)}px">${half(o.n)}<i></i>${half(o.f)}</span>`}).join('');
 }
 function report(){
  const w=G.res.w,d=G.dec,H=G.hist,ok=d.filter(x=>x.gap<=5).length;
