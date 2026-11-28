@@ -215,7 +215,9 @@ function renderMenu(){
  fit();
 }
 function render(){if(G.menu){renderMenu();return}
- const seat=(s,c,lab)=>`<div class="sp ${c} ${G.turn==s&&!G.over?'on':''}"><div class="bks">${'<span class="bk"></span>'.repeat(G.hands[s].length)}</div><div class="mut">${lab} · ${G.hands[s].length}</div></div>`;
+ const seat=(s,c,lab)=>{const h=G.hands[s];if(G.over&&h.length){const pts=h.reduce((a,t)=>a+t[0]+t[1],0);
+  return `<div class="sp ${c} rv"><div class="rvh">${h.map(t=>ltl(t)).join('')}</div><div class="mut">${lab} · ${pts} pt${pts==1?'':'s'}</div></div>`}
+ return `<div class="sp ${c} ${G.turn==s&&!G.over?'on':''}"><div class="bks">${'<span class="bk"></span>'.repeat(h.length)}</div><div class="mut">${lab} · ${h.length}</div></div>`};
  let h=(G.comp?sbHtml():'')+'<div class="play'+(G.comp?' cp':'')+'">'+seat(2,'top',NM[2])+(G.solo?'':seat(3,'left',NM[3]))+'<div class="sq"><div class="stage">'+boardHtml()+'</div></div>'+(G.solo?`<div class="sp right"><div class="bks">${'<span class="bk"></span>'.repeat(G.mt.length)}</div><div class="mut">Monte · ${G.mt.length}</div></div>`:seat(1,'right',NM[1]));
  const ms=G.turn==0&&!G.over?moves(0):[],op=G.turn==0&&!G.over&&!G.board.length;
  h+='<div class="card hd"><b>Sua mão</b> <span class="mut">'+(G.board.length?'(pontas '+G.L+' e '+G.R+')':'')+'</span> '+(G.over?'':G.turn==0?(op?'· você abre a partida: escolha qualquer pedra':ms.length?'· sua vez':G.solo&&G.mt.length?'· sem jogada: compre do monte':'· sem jogada: passe a vez'):'· aguarde')+(G.turn==0&&!G.over&&hlpOk()?' <button class="hbtn" data-help="1">💡 Ajuda</button>':'');
@@ -233,7 +235,7 @@ function aiAct(){if(G.over||G.turn==0)return;G.waiting=false;const s=G.turn;
  const m=moves(s).length?aiPick(s):null;m?play(s,m):pass(s);step()}
 function userDraw(){if(G.over||G.turn!=0||!G.board.length||moves(0).length||!G.mt.length)return;
  if(!G.dr){G.ps[0].add(G.L);G.ps[0].add(G.R);G.hist.push({k:'p',s:0,L:G.L,R:G.R,d:1})}else{const e=[...G.hist].reverse().find(z=>z.k=='p'&&z.s==0);e.d++}
- G.dr=(G.dr||0)+1;G.hands[0].push(G.mt.pop());G.hands[0].sort((a,b)=>b[0]+b[1]-a[0]-a[1]);log('Você comprou uma pedra');render();step()}
+ G.dr=(G.dr||0)+1;G.hands[0].push(G.mt.pop());G.hands[0].sort((a,b)=>b[0]+b[1]-a[0]-a[1]);log(`${NM[0]} comprou uma pedra`);render();step()}
 function fit(){const s=document.querySelector('#app .sq'),g=document.querySelector('#app .stage');if(s&&g&&s.clientWidth)g.style.transform=`scale(${s.clientWidth/760})`}
 addEventListener('resize',fit);
 function boardHtml(){
@@ -311,7 +313,7 @@ $('#app').addEventListener('click',e=>{
 const CFG=['df','sp','dir','opn','hlp'];
 try{const c=JSON.parse(localStorage.getItem('dominoCfg')||'{}');CFG.forEach(k=>{if(c[k]!=null)$('#'+k).value=c[k]})}catch(e){}
 CFG.forEach(k=>$('#'+k).onchange=()=>{try{localStorage.setItem('dominoCfg',JSON.stringify(Object.fromEntries(CFG.map(q=>[q,$('#'+q).value]))))}catch(e){}typeof acctDirty=='function'&&acctDirty();
- if(k=='df'&&G&&!G.menu)G.df=+$('#df').value;if(k=='sp'&&G&&G.waiting&&+$('#sp').value)aiAct()});
+ if(k=='df'&&G&&!G.menu&&!(window.ONL&&ONL.game))G.df=+$('#df').value;if(k=='sp'&&G&&G.waiting&&+$('#sp').value)aiAct()});
 $('#cg').onclick=()=>$('#cfg').classList.add('on');$('#cfgx').onclick=()=>$('#cfg').classList.remove('on');
 $('#cfg').onclick=e=>{if(e.target.id=='cfg')$('#cfg').classList.remove('on')};
 $('#rb').onclick=()=>$('#rg').classList.add('on');

@@ -83,7 +83,7 @@ function fxRender(){
    const champ=G.comp&&M&&M.over,cw=champ&&M.winner==0&&!sp,fsc=M?M.sc.slice():[0,0],g0=G,na=G.newAch&&G.newAch.length,solo=G.solo;
    setTimeout(()=>{try{if(G!==g0&&!champ)return;if(sp){sfx(tie?'tie':'win');banner(champ?'🏆 Fim da competição':bat?'💥 BATIDA!':'🔒 JOGO FECHADO',champ?`${fsc[0]} × ${fsc[1]}`:tie?'Empate':'Fim da partida','gd');if(champ)confetti(160)}
     else if(champ){sfx(cw?'champ':'lose');banner(cw?'🏆 CAMPEÃO!':'Fim da competição',`${fsc[0]} × ${fsc[1]}`,cw?'gd':'bd');if(cw){confetti(260);setTimeout(()=>confetti(160),700);vib([30,60,30,60,80])}}
-    else{sfx(tie?'tie':me?'win':'lose');banner(bat?'💥 BATIDA!':'🔒 JOGO FECHADO',tie?'Empate':me?(solo?'Você venceu!':'Seu time venceu!'):(solo?'O robô venceu':'Os rivais venceram'),me?'gd':tie?'':'bd');if(me){confetti(140);vib([20,40,20])}}
+    else{sfx(tie?'tie':me?'win':'lose');banner(bat?'💥 BATIDA!':'🔒 JOGO FECHADO',tie?'Empate':me?(solo?'Você venceu!':'Seu time venceu!'):(solo?(G.online?esc(NM[2])+' venceu':'O robô venceu'):'Os rivais venceram'),me?'gd':tie?'':'bd');if(me){confetti(140);vib([20,40,20])}}
     if(na)setTimeout(()=>sfx('ach'),900)}catch(e){}},bat?260:120);
    if(e.now&&e.prev){const b=document.querySelectorAll('#app .sb b');countUp(b[1],e.prev[0],e.now[0]);countUp(b[2],e.prev[1],e.now[1]);if(e.pts&&r.w>=0)setTimeout(()=>{floatTxt('#app .sb','+'+e.pts+(sp?' pontos':r.w==0?' para você':' para eles'),r.w==0?'gd':'bd');sfx('coin')},500)}
    if(AN()!='off')document.querySelectorAll('#app > .card').forEach((c,i)=>c.animate&&c.animate([{transform:'translateY(18px)',opacity:0},{transform:'none',opacity:1}],{duration:360,delay:250+i*90,easing:'ease-out',fill:'backwards'}))}});

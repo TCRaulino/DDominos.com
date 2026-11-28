@@ -62,7 +62,8 @@ async function netReady(){if(!NET)NET=MOCK?mockNet():await fbNet();await NET.ini
 /* --- utilidades da mesa --- */
 const OLS={dup:[1,2,3],solo:[2]};
 const seatName=(mode,s)=>mode=='solo'?['Anfitrião','—','Adversário','—'][s]:['Anfitrião','À direita do anfitrião','Em frente (parceiro do anfitrião)','À esquerda do anfitrião'][s];
-const botName=(mode,s)=>mode=='solo'?'🤖 Robô':['','🤖 Robô D','🤖 Robô parceiro','🤖 Robô E'][s];
+/* Nome dos robôs na mesa online: "Robô" se houver só um; "Robô A", "Robô B"… se houver mais. */
+function botName(mode,s,seats){const free=(mode=='solo'?[2]:[1,2,3]).filter(x=>!(seats||{})[x]);if(free.length<=1)return '🤖 Robô';const i=free.indexOf(s);return '🤖 Robô '+'ABC'[i<0?0:i]}
 const newCode=()=>{const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<4;i++)c+=A[Math.floor(Math.random()*A.length)];return c};
 const nick=()=>{try{return safeName(localStorage.getItem('dominoNick'))}catch(e){return''}};
 const setNick=n=>{try{localStorage.setItem('dominoNick',safeName(n))}catch(e){}typeof acctDirty=='function'&&acctDirty()};
@@ -76,29 +77,29 @@ function olPanel(){const o=G.ol,n=esc(nick()),e=o.err?`<div class="olerr">${esc(
  if(o.step=='start')return `<div class="ov olp"><b>🌐 Jogar online</b><label class="olf">Seu apelido<input id="olnick" maxlength="14" value="${n}" placeholder="Como os outros vão te ver"></label><button class="p" data-ol="create"${b}>Criar mesa<small>você convida os amigos com um código</small></button><button class="p" data-ol="tojoin"${b}>Entrar com código<small>alguém já criou a mesa</small></button>${e}<button class="sm" data-ol="back">‹ voltar</button></div>`;
  if(o.step=='join'&&o.auto&&o.busy)return `<div class="ov olp"><b>Voltando para a mesa ${esc(o.code)}…</b><span style="font-size:13px">Conectando ao servidor</span></div>`;
  if(o.step=='join')return `<div class="ov olp"><b>Entrar em uma mesa</b><label class="olf">Seu apelido<input id="olnick" maxlength="14" value="${n}"></label><label class="olf">Código da mesa<input id="olcode" maxlength="4" value="${esc(o.code)}" placeholder="Ex.: K7QD" style="text-transform:uppercase;letter-spacing:4px;text-align:center"></label><button class="p" data-ol="join"${b}>${o.busy?'Conectando…':'Entrar'}</button>${e}<button class="sm" data-ol="start">‹ voltar</button></div>`;
- if(o.step=='create')return `<div class="ov olp"><b>Nova mesa online</b><label class="olf">Modalidade<select id="olmode"><option value="dup">Duplas (até 4 pessoas)</option><option value="solo">Solo (1 × 1)</option></select></label><label class="olf">Formato<select id="olcomp"><option value="0">Casual: uma partida</option><option value="1">Competição: até 100 pontos</option></select></label><label class="olf">Tempo por jogada<select id="oltl"><option value="0">Sem limite</option><option value="30" selected>30 segundos</option><option value="60">60 segundos</option><option value="90">90 segundos</option>${MOCK?'<option value="4">4 s (teste)</option>':''}</select></label><div class="olnote">Dificuldade e velocidade dos robôs, sentido da mesa e saída seguem ⚙ Configurações.</div><button class="p" data-ol="docreate"${b}>${o.busy?'Criando…':'Criar mesa'}</button>${e}<button class="sm" data-ol="start">‹ voltar</button></div>`;
+ if(o.step=='create')return `<div class="ov olp"><b>Nova mesa online</b><label class="olf">Modalidade<select id="olmode"><option value="dup">Duplas (até 4 pessoas)</option><option value="solo">Solo (1 × 1)</option></select></label><label class="olf">Formato<select id="olcomp"><option value="0">Casual: uma partida</option><option value="1">Competição: até 100 pontos</option></select></label><label class="olf">Tempo por jogada<select id="oltl"><option value="0">Sem limite</option><option value="30" selected>30 segundos</option><option value="60">60 segundos</option><option value="90">90 segundos</option>${MOCK?'<option value="4">4 s (teste)</option>':''}</select></label><label class="olf">Dificuldade dos robôs<select id="oldf">${[['0','Fácil'],['1','Médio'],['2','Difícil'],['3','Mestre (calcula e lê a mesa)']].map(([v,t])=>`<option value="${v}"${v==(($('#df')||{}).value||'2')?' selected':''}>${t}</option>`).join('')}</select></label><div class="olnote">Velocidade dos robôs, sentido da mesa e saída seguem ⚙ Configurações.</div><button class="p" data-ol="docreate"${b}>${o.busy?'Criando…':'Criar mesa'}</button>${e}<button class="sm" data-ol="start">‹ voltar</button></div>`;
  return''}
 function lobbyHtml(){const R=ONL.room||{},cfg=R.cfg||{},seats=R.seats||{},pl=R.players||{},me=NET.uid,host=R.host===me,mode=cfg.mode||'dup',my=ONL.mySeat;
  const sl=OLS[mode],nm=s=>{const u=seats[s];if(u&&pl[u])return esc(safeName(pl[u].name)||'Jogador')+(u==me?' (você)':'')+(pl[u].on===false?' ⚠️':'');return null};
- const rows=[0,...sl].map(s=>{const n=nm(s);return `<div class="olseat ${seats[s]==me?'me':''}"><span><b>${seatName(mode,s)}</b>${mode=='dup'?`<span class="mut"> · Dupla ${s%2?'B':'A'}</span>`:''}<br>${n||'<span class="mut">Livre · '+botName(mode,s)+' joga aqui</span>'}</span>${!host&&!n&&R.status=='lobby'?`<button class="p" data-ol="sit" data-v="${s}">Sentar aqui</button>`:''}</div>`}).join('');
+ const rows=[0,...sl].map(s=>{const n=nm(s);return `<div class="olseat ${seats[s]==me?'me':''}"><span><b>${seatName(mode,s)}</b>${mode=='dup'?`<span class="mut"> · Dupla ${s%2?'B':'A'}</span>`:''}<br>${n||'<span class="mut">Livre · '+botName(mode,s,seats)+' joga aqui</span>'}</span>${!host&&!n&&R.status=='lobby'?`<button class="p" data-ol="sit" data-v="${s}">Sentar aqui</button>`:''}</div>`}).join('');
  const out=Object.keys(pl).filter(u=>!Object.values(seats).includes(u)&&pl[u].on!==false),specs=out.filter(u=>pl[u].spec).map(u=>esc(safeName(pl[u].name)||'Jogador')+(u==me?' (você)':'')),wait=out.filter(u=>!pl[u].spec).map(u=>esc(safeName(pl[u].name)||'Jogador'));
  const humans=Object.values(seats).filter(Boolean).length;
  return `<div class="card hd"><div class="row" style="justify-content:space-between"><b>Mesa ${ONL.code}</b><span class="row"><button data-ol="copy">📋 Copiar link</button><button data-ol="leave">Sair</button></span></div>
-<div class="mut">${mode=='dup'?'Duplas':'Solo'} · ${cfg.comp?'Competição até 100':'Casual'} · ${cfg.tl?'⏱ '+cfg.tl+' s por jogada':'sem limite de tempo'}</div>${rows}${specs.length?`<div class="mut">👀 Assistindo: ${specs.join(', ')}</div>`:''}${wait.length?`<div class="mut">Na sala, sem lugar: ${wait.join(', ')}</div>`:''}
+<div class="mut">${mode=='dup'?'Duplas':'Solo'} · ${cfg.comp?'Competição até 100':'Casual'} · ${cfg.tl?'⏱ '+cfg.tl+' s por jogada':'sem limite de tempo'} · ${host?`robôs: <select data-oldf>${OLDF.map((t,v)=>`<option value="${v}"${v==olDf(cfg)?' selected':''}>${t}</option>`).join('')}</select>`:'robôs: '+OLDF[olDf(cfg)]}</div>${rows}${specs.length?`<div class="mut">👀 Assistindo: ${specs.join(', ')}</div>`:''}${wait.length?`<div class="mut">Na sala, sem lugar: ${wait.join(', ')}</div>`:''}
 ${host?`<div class="row" style="margin-top:8px"><button class="p" data-ol="start-game">▶ Começar partida</button><span class="mut">${humans<sl.length+1?'Lugares livres serão jogados por robôs.':'Mesa completa!'}</span></div>`:`<div class="row" style="margin-top:6px"><span class="mut">${my!=null?'Aguardando o anfitrião começar…':ONL.spec?'Você vai assistir. Para jogar, escolha um lugar livre.':'Escolha um lugar ou só assista.'}</span>${my==null&&!ONL.spec?'<button data-ol="watch">👀 Só assistir</button>':''}</div>`}</div>`}
 function lobbyRender(){const R=ONL.room||{},cfg=R.cfg||{},mode=cfg.mode||'dup',seats=R.seats||{},pl=R.players||{},r=ONL.mySeat||0;
- const lab=a=>{const u=seats[a];return u&&pl[u]?esc(safeName(pl[u].name)||'Jogador'):(mode=='solo'&&a%2?'':botName(mode,a))};
+ const lab=a=>{const u=seats[a];return u&&pl[u]?esc(safeName(pl[u].name)||'Jogador'):(mode=='solo'&&a%2?'':botName(mode,a,seats))};
  const sd=(v,c)=>{const a=(v+r)%4;if(mode=='solo'&&a%2)return `<div class="sp ${c}"></div>`;return `<div class="sp ${c}"><div class="bks">${'<span class="bk"></span>'.repeat(7)}</div><div class="mut">${lab(a)}</div></div>`};
  $('#app').innerHTML=`<div class="play">${sd(2,'top')}${sd(3,'left')}<div class="sq"><div class="stage"></div><div class="ov olp"><span class="mut" style="color:#fff">Código da mesa</span><div class="olcode">${ONL.code}</div><span style="font-size:13px">Mande o código ou o link para os amigos</span></div></div>${sd(1,'right')}${lobbyHtml()}</div>`;fit()}
 const _renderMenu=renderMenu;renderMenu=function(){if(ONL&&ONL.code&&!ONL.game){lobbyRender();return}_renderMenu();if(G.ol){const ov=document.querySelector('#app .ov');if(ov)ov.outerHTML=olPanel();const hd=document.querySelector('#app .hd');if(hd)hd.textContent='Jogue com amigos em tempo real. Lugares vazios são completados por robôs.'}};
 /* --- criar / entrar / sair --- */
-async function olCreate(){const nk=safeName(($('#olnick')||{}).value||nick())||'Anfitrião';const mode=$('#olmode').value,comp=$('#olcomp').value=='1',tl=+$('#oltl').value;
+async function olCreate(){const nk=safeName(($('#olnick')||{}).value||nick())||'Anfitrião';const mode=$('#olmode').value,comp=$('#olcomp').value=='1',tl=+$('#oltl').value,df=sN(($('#oldf')||{}).value,0,3,2);
  G.ol.busy=true;G.ol.err='';render();
  try{await netReady()}catch(e){olErr(navigator.onLine===false?'Você está sem internet. O modo online precisa de conexão; contra os robôs dá para jogar normalmente.':'Não foi possível conectar ao servidor. O modo online funciona no site publicado (GitHub Pages); dentro do Claude a conexão é bloqueada.');return}
  try{const old=await NET.old(NET.now()-864e5);for(const c of old){await NET.remove('rooms/'+c).catch(()=>{});await NET.remove('idx/'+c).catch(()=>{})}}catch(e){}
  let code='';for(let i=0;i<8;i++){const c=newCode();if(!(await NET.get('rooms/'+c+'/host'))){code=c;break}}
  if(!code){olErr('Não consegui gerar um código. Tente de novo.');return}
- const me=NET.uid;await NET.set('rooms/'+code,{host:me,status:'lobby',cfg:{mode,comp,tl},seats:{0:me},players:{[me]:{name:nk,on:true}},t:NET.ts()});
+ const me=NET.uid;await NET.set('rooms/'+code,{host:me,status:'lobby',cfg:{mode,comp,tl,df},seats:{0:me},players:{[me]:{name:nk,on:true}},t:NET.ts()});
  try{await NET.set('idx/'+code,NET.ts())}catch(e){}
  olEnter(code,'host')}
 async function olJoin(){const nk=safeName(($('#olnick')||{}).value||nick())||'Jogador',code=sCode(($('#olcode')||{}).value);
@@ -143,14 +144,15 @@ function hostSeats(){const R=ONL.room;
  for(const s in seats){const u=seats[s];if(s!='0'&&(!pl[u]||pl[u].spec))delete seats[s],ch=true}
  if(R.status=='lobby')for(const u in pl){if(u==me||pl[u].spec)continue;const want=pl[u].seat;if(want==null||!OLS[mode].includes(+want))continue;const cur=Object.keys(seats).find(s=>seats[s]==u);if(cur==want)continue;if(seats[want]&&seats[want]!=u)continue;if(cur!=null)delete seats[cur];seats[want]=u;ch=true}
  seats[0]=me;if(ch)NET.set(rp('seats'),seats)}
-function hostNames(){const R=ONL.room,pl=R.players||{},seats=R.seats||{},mode=R.cfg.mode;NM=[0,1,2,3].map(s=>{const u=seats[s];if(u&&pl[u])return (safeName(pl[u].name)||'Jogador')+(pl[u].on===false?' ⚠️':'');return mode=='solo'&&s%2?'—':botName(mode,s)})}
+function hostNames(){const R=ONL.room,pl=R.players||{},seats=R.seats||{},mode=R.cfg.mode;NM=[0,1,2,3].map(s=>{const u=seats[s];if(u&&pl[u])return (safeName(pl[u].name)||'Jogador')+(pl[u].on===false?' ⚠️':'');return mode=='solo'&&s%2?'—':botName(mode,s,Object.fromEntries(Object.entries(seats).filter(([k,u])=>u&&pl[u])))})}
+const OLDF=['Fácil','Médio','Difícil','Mestre'],olDf=cfg=>sN((cfg||{}).df,0,3,2);
 const humanAt=s=>{const R=ONL.room,u=(R.seats||{})[s];return u&&(R.players||{})[u]?u:null};
 const humanOn=s=>{const u=humanAt(s);return !!u&&ONL.room.players[u].on!==false};
 function hostStart(again){const R=ONL.room,cfg=R.cfg;ONL.game=true;ONL.rid++;
  if(cfg.comp&&(!again||!M||M.over||M.online!==ONL.code))M={mode:cfg.mode,sc:[0,0],rounds:[],n:0,starter:0,target:100,over:false,online:ONL.code};
  if(!cfg.comp)M=null;
  const old=[...(cfg.mode=='solo'?['Você','—','Robô','—']:['Você','Rival D','Parceiro','Rival E'])];
- ONL.hold=true;_newGame(cfg.mode,!!cfg.comp);ONL.hold=false;hostNames();
+ ONL.hold=true;_newGame(cfg.mode,!!cfg.comp);ONL.hold=false;G.df=olDf(cfg);hostNames();
  G.logs=G.logs.map(l=>{for(let i=0;i<4;i++)if(l.startsWith(old[i]+' '))return NM[i]+l.slice(old[i].length);return l});
  if(M)M.lb=cfg.mode=='solo'?NM[2]:'Eles';
  ONL.turnKey=null;sfx('shuffle');NET.set(rp('status'),'play');step()}
@@ -159,7 +161,7 @@ function hostTimes(){const cfg=ONL.room.cfg||{};const tk=G.hist.length+':'+G.tur
 function hostPublish(){
  const li=G.last?G.board.indexOf(G.last):-1;
  const st={v:++ONL.v,rid:ONL.rid,solo:G.solo,comp:!!G.comp,board:G.board,nl:G.nl,L:G.L==null?null:G.L,R:G.R==null?null:G.R,li,turn:G.turn,hc:G.hands.map(h=>h.length),mt:(G.mt||[]).length,over:!!G.over,
-  res:G.over&&G.res?{w:G.res.w,msg:G.res.msg,pts:G.res.pts||0,...olStats()}:null,logs:G.logs.slice(-8),names:NM,deadline:ONL.deadline,fx:ONL.fx.slice(-12),
+  res:G.over&&G.res?{w:G.res.w,msg:G.res.msg,pts:G.res.pts||0,...olStats(),hd:G.hands}:null,logs:G.logs.slice(-8),names:NM,deadline:ONL.deadline,fx:ONL.fx.slice(-12),
   m:M&&G.comp?{n:M.n,sc:M.sc,target:M.target,over:!!M.over,winner:M.winner==null?null:M.winner,lb:M.lb,rounds:M.rounds.map(r=>({n:r.n,tw:r.tw,pts:r.pts,sc:r.sc,kind:r.kind,out:r.out==null?null:r.out}))}:null};
  const up={state:st,t:NET.ts()};[1,2,3].forEach(s=>{if(humanAt(s))up['hands/'+s]=G.hands[s]});NET.update(rp(),up);
  hostSave();
@@ -198,13 +200,14 @@ function gApply(){const st=ONL.st;if(!st||!ONL.room||typeof st!='object')return;
  const board=sArr(st.board).slice(0,28).map(sTile),hand=spec?[]:sArr(ONL.hand).slice(0,21).map(sTile).sort((a,b)=>b[0]+b[1]-a[0]-a[1]),names=[0,1,2,3].map(i=>safeName(sArr(st.names)[i])||'—');
  const rid=sN(st.rid,-1,1e6,0),v=sN(st.v,0,1e9,0),hc=sArr(st.hc).map(n=>sN(n,0,28,0));
  if(rid!==ONL.rid){ONL.rid=rid;ONL.dealt=false;sfx('shuffle')}
- NM=[0,1,2,3].map(x=>x==0&&!spec?'Você':names[un(x)]);
- const hands=[0,1,2,3].map(x=>x==0&&!spec?hand:Array.from({length:hc[un(x)]||0},()=>[0,0]));
+ NM=[0,1,2,3].map(x=>names[un(x)]);
+ const rsh=st.over&&st.res&&typeof st.res=='object'?sArr(st.res.hd):null;
+ const hands=[0,1,2,3].map(x=>x==0&&!spec?hand:rsh?sArr(rsh[un(x)]).slice(0,21).map(sTile):Array.from({length:hc[un(x)]||0},()=>[0,0]));
  const FXK=['play','pass','draw','end'],pair=a=>a?sArr(a).slice(0,2).map(x=>sN(x,0,999,0)):null;
  const fxl=sArr(st.fx).filter(e=>e&&typeof e=='object'&&FXK.includes(e.k)).map(e=>({k:e.k,q:sN(e.q,0,1e9,0),s:e.s==null?null:sN(e.s,0,3,0),n:sN(e.n,0,28,0),bat:!!e.bat,w:e.w==null?null:sN(e.w,-1,3,-1),pts:sN(e.pts,0,500,0),prev:pair(e.prev),now:pair(e.now)}));
  const fxq=[];fxl.forEach(e=>{if(e.q<=ONL.fxSeen||ONL.fxSeen<0)return;const x={...e};if(x.s!=null)x.s=rot(x.s);if(x.k=='end'){x.w=relW(x.w);if(myT==1&&x.prev)x.prev=[x.prev[1],x.prev[0]];if(myT==1&&x.now)x.now=[x.now[1],x.now[0]]}fxq.push(x)});
  ONL.fxSeen=Math.max(ONL.fxSeen,...fxl.map(e=>e.q),0);
- const rs=st.res&&typeof st.res=='object'?st.res:null,res=rs?{w:relW(rs.w==null?null:sN(rs.w,-1,3,-1)),msg:String(rs.msg==null?'':rs.msg).slice(0,200),pts:sN(rs.pts,0,500,0),fz:[0,1,2,3].map(i=>sN(sArr(rs.fz)[i],0,99,0)),pp:[0,1,2,3].map(i=>sN(sArr(rs.pp)[i],0,200,0))}:null;
+ const rs=st.res&&typeof st.res=='object'?st.res:null,res=rs?{w:relW(rs.w==null?null:sN(rs.w,-1,3,-1)),msg:String(rs.msg==null?'':rs.msg).slice(0,200),pts:sN(rs.pts,0,500,0),fz:[0,1,2,3].map(i=>sN(sArr(rs.fz)[i],0,99,0)),pp:[0,1,2,3].map(i=>sN(sArr(rs.pp)[i],0,200,0)),hd:[0,1,2,3].map(i=>sArr(sArr(rs.hd)[i]).slice(0,21).map(sTile))}:null;
  const li=sN(st.li,-1,27,-1),tn=st.turn==null?-1:sN(st.turn,-1,3,-1);
  G={online:true,spec,solo,comp:!!st.comp,board,nl:Math.min(sN(st.nl,0,27,0),Math.max(board.length-1,0)),L:st.L==null?null:sN(st.L,0,6,0),R:st.R==null?null:sN(st.R,0,6,0),last:li>=0&&li<board.length?board[li]:null,
   turn:tn<0?-1:(ONL.pend===v?-2:rot(tn)),over:!!st.over,res,hands,mt:Array.from({length:sN(st.mt,0,28,0)}),logs:sArr(st.logs).slice(-8).map(x=>String(x).slice(0,160)),
@@ -339,3 +342,6 @@ async function hostRestore(){
   hostNames();olToast('Partida retomada.');hostStep();
 }
 
+
+/* Anfitrião muda a dificuldade dos robôs na sala de espera. */
+document.addEventListener('change',e=>{const s=e.target.closest&&e.target.closest('select[data-oldf]');if(!s||!ONL||ONL.role!='host')return;NET.update(rp('cfg'),{df:sN(s.value,0,3,2)}).catch(()=>olToast('Não deu para mudar agora.'))});
