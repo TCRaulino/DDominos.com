@@ -20,7 +20,7 @@ const jp=(s,d)=>{try{const x=JSON.parse(s);return x&&typeof x=='object'?x:d}catc
 
 /* --- login: Firebase de verdade ou simulado (?mock=1) --- */
 function accFb(){let C=null;const core=async()=>C||(C=await fbCore());
- const me=u=>u&&!u.isAnonymous?{uid:u.uid,name:safeName(u.displayName||(u.email||'').split('@')[0]),email:u.email||'',prov:(u.providerData||[]).some(p=>p.providerId=='google.com')?'google':'email'}:null;
+ const me=u=>u&&!u.isAnonymous?{uid:u.uid,name:safeName(u.displayName||(u.email||'').split('@')[0]),email:u.email||'',prov:(u.providerData||[]).some(p=>p.providerId=='google.com')?'google':'email',pw:(u.providerData||[]).some(p=>p.providerId=='password')}:null;
  return{
   async start(cb){const{AU,auth}=await core();auth.languageCode='pt';try{await AU.getRedirectResult(auth)}catch(e){ACCT.err=accErr(e)}AU.onAuthStateChanged(auth,u=>cb(me(u)))},
   async google(){const{AU,auth}=await core();const pv=new AU.GoogleAuthProvider();pv.setCustomParameters({prompt:'select_account'});
@@ -28,6 +28,8 @@ function accFb(){let C=null;const core=async()=>C||(C=await fbCore());
   async signIn(em,pw){const{AU,auth}=await core();await AU.signInWithEmailAndPassword(auth,em,pw)},
   async signUp(n,em,pw){const{AU,auth}=await core();const c=await AU.createUserWithEmailAndPassword(auth,em,pw);try{await AU.updateProfile(c.user,{displayName:n})}catch(e){}},
   async reset(em){const{AU,auth}=await core();await AU.sendPasswordResetEmail(auth,em)},
+  /* Acrescenta e-mail e senha a uma conta do Google (mesma conta, mesmo perfil). */
+  async linkPw(pw){const{AU,auth}=await core();const u=auth.currentUser;await AU.linkWithCredential(u,AU.EmailAuthProvider.credential(u.email,pw))},
   async out(){const{AU,auth}=await core();await AU.signOut(auth)},
   async get(p){const{D,db}=await core();return(await D.get(D.ref(db,p))).val()},
   async set(p,v){const{D,db}=await core();return D.set(D.ref(db,p),v)},
@@ -37,8 +39,9 @@ function accMock(){const K='dominoMockAuth',S='mockAcct',db=mockNet();let cb=()=
  const cur=()=>jp(sessionStorage.getItem(S),null),setCur=u=>{u?sessionStorage.setItem(S,JSON.stringify(u)):sessionStorage.removeItem(S);setTimeout(()=>cb(u),0)};
  const fail=c=>{const e=new Error(c);e.code=c;throw e};
  return{async start(f){cb=f;setTimeout(()=>cb(cur()),0)},
-  async google(){setCur({uid:'g_teste',name:'Teste Google',email:'teste@gmail.com',prov:'google'})},
-  async signIn(em,pw){const u=users()[em.toLowerCase()];if(!u||u.pw!==pw)fail('auth/invalid-credential');setCur({uid:u.uid,name:u.name,email:em.toLowerCase(),prov:'email'})},
+  async google(){const us=users(),g=us['teste@gmail.com'];setCur({uid:'g_teste',name:'Teste Google',email:'teste@gmail.com',prov:'google',pw:!!(g&&g.pw)})},
+  async linkPw(pw){const c=cur(),us=users();if(us[c.email]&&us[c.email].pw)fail('auth/provider-already-linked');us[c.email]={pw,uid:c.uid,name:c.name};save(us);setCur({...c,pw:true})},
+  async signIn(em,pw){const u=users()[em.toLowerCase()];if(!u||u.pw!==pw)fail('auth/invalid-credential');setCur({uid:u.uid,name:u.name,email:em.toLowerCase(),prov:u.uid=='g_teste'?'google':'email',pw:true})},
   async signUp(n,em,pw){em=em.toLowerCase();const us=users();if(us[em])fail('auth/email-already-in-use');if(pw.length<6)fail('auth/weak-password');
    us[em]={pw,uid:'e_'+Math.random().toString(36).slice(2,8),name:n};save(us);setCur({uid:us[em].uid,name:n,email:em,prov:'email'})},
   async reset(){},async out(){setCur(null)},get:p=>db.get(p),set:(p,v)=>db.set(p,v),async on(p,f){return db.on(p,f)}}}
@@ -53,7 +56,7 @@ function accErr(e){const c=(e&&e.code)||'';
   'auth/network-request-failed':'Sem internet. Tente de novo quando a conexão voltar.','auth/popup-closed-by-user':'','auth/cancelled-popup-request':'','auth/user-cancelled':'',
   'auth/unauthorized-domain':'Este endereço do site ainda não foi autorizado no Firebase (Authentication → Configurações → Domínios autorizados).',
   'auth/operation-not-allowed':'Esse tipo de login ainda não foi ativado no Firebase (Authentication → Método de login).',
-  'auth/account-exists-with-different-credential':'Esse e-mail já tem conta com outro tipo de login. Entre do mesmo jeito que usou da primeira vez.'};
+  'auth/provider-already-linked':'Sua conta já tem senha. Use "Esqueci minha senha" se não lembrar dela.','auth/requires-recent-login':'Por segurança, saia e entre de novo com o Google e tente outra vez.','auth/credential-already-in-use':'Esse e-mail já é usado por outra conta.','auth/account-exists-with-different-credential':'Esse e-mail já tem conta com outro tipo de login. Entre do mesmo jeito que usou da primeira vez.'};
  if(c in M)return M[c];
  if(!c)return navigator.onLine===false?'Sem internet. Tente de novo quando a conexão voltar.':'Não foi possível conectar ao servidor. O login funciona no site publicado (GitHub Pages); dentro do Claude a conexão é bloqueada.';
  return 'Não deu certo ('+c.replace('auth/','')+'). Tente de novo.'}
@@ -117,7 +120,7 @@ async function accOnUser(u){const was=ACCT.u;
   if(ACCT.off){try{ACCT.off()}catch(e){}ACCT.off=null}
   ACCT.u=u;ACCT.view='';ACCT.err='';ACCT.msg='';if(!nick()&&u.name)setNick(u.name);
   await accSyncIn(u)}
- else if(was){typeof frStop=='function'&&frStop();if(ACCT.off){try{ACCT.off()}catch(e){}ACCT.off=null}clearTimeout(ACCT.t);ACCT.u=null;ACCT.sync='';accWipe();accRefresh();toast('Você saiu da conta. Seu progresso continua guardado nela.')}
+ else if(was){typeof frStop=='function'&&frStop();if(ACCT.off){try{ACCT.off()}catch(e){}ACCT.off=null}clearTimeout(ACCT.t);ACCT.u=null;ACCT.sync='';ACCT.view='';accWipe();accRefresh();toast('Você saiu da conta. Seu progresso continua guardado nela.')}
  accRefresh()}
 async function accLogout(){
  if(lsG(ACC_K.dirty)=='1'){await Promise.race([accPush(),new Promise(r=>setTimeout(r,4000))])}
@@ -127,36 +130,47 @@ async function accLogout(){
 /* --- tela (cartão no topo do Perfil) --- */
 function acctCard(){const A=ACCT,e=A.err?`<div class="olerr acerr">${esc(A.err)}</div>`:'',m=A.msg?`<div class="acmsg">${esc(A.msg)}</div>`:'',b=A.busy?' disabled':'';
  if(A.u){const st={ok:'☁️ Sincronizado',wait:'⏳ Salvando…',sync:'⏳ Sincronizando…',err:'⚠️ Sem conexão: salvamos quando a internet voltar'}[A.sync]||'☁️ Conectado';
-  return `<div class="card acc"><div class="row" style="justify-content:space-between;align-items:center;flex-wrap:nowrap"><div style="min-width:0"><b>👤 ${esc(A.u.name||'Jogador')}</b><div class="mut acsm">${esc(A.u.email)} · ${A.u.prov=='google'?'Google':'e-mail e senha'}</div><div class="acsm" id="acst">${st}</div></div><button data-ac="out"${b}>${A.cfOut?'Sair mesmo assim':'Sair'}</button></div>${e}${m}</div>`}
+  return `<div class="card acc"><div class="row" style="justify-content:space-between;align-items:center;flex-wrap:nowrap"><div style="min-width:0"><b>👤 ${esc(A.u.name||'Jogador')}</b><div class="mut acsm">${esc(A.u.email)} · ${A.u.prov=='google'?'Google':'e-mail e senha'}</div><div class="acsm" id="acst">${st}</div></div><button data-ac="out"${b}>${A.cfOut?'Sair mesmo assim':'Sair'}</button></div>
+${A.view=='pw'?`<form data-acf="pw" class="accf" novalidate><label>Nova senha para ${esc(A.u.email)} (mínimo 6 caracteres)<input name="pw" type="password" autocomplete="new-password"></label><div class="row"><button class="p" type="submit"${b}>${A.busy?'Aguarde…':'Criar senha'}</button><button type="button" data-ac="back">Voltar</button>${A.busy?'<button type="button" data-ac="cancel">Cancelar</button>':''}</div></form>`
+ :A.u.prov=='google'&&!A.u.pw?`<div class="acsm" style="margin-top:6px"><a href="#" data-ac="mkpw">🔑 Criar senha</a> <span class="mut">para entrar também com e-mail e senha (necessário no app do iPhone)</span></div>`:''}${e}${m}</div>`}
  if(A.view){const nw=A.view=='new',rs=A.view=='reset';
   return `<div class="card acc"><b>${nw?'Criar conta':rs?'Recuperar senha':'Entrar com e-mail'}</b>
 <form data-acf="${A.view}" class="accf" novalidate>${nw?`<label>Seu nome (aparece na mesa online)<input name="nm" maxlength="14" autocomplete="nickname" value="${esc(A.form.name)}"></label>`:''}
 <label>E-mail<input name="email" type="email" autocomplete="email" inputmode="email" value="${esc(A.form.email)}"></label>
 ${rs?'<div class="mut acsm">Enviamos um link para você criar uma senha nova.</div>':`<label>Senha${nw?' (mínimo 6 caracteres)':''}<input name="pw" type="password" autocomplete="${nw?'new-password':'current-password'}"></label>`}
-<div class="row"><button class="p" type="submit"${b}>${A.busy?'Aguarde…':nw?'Criar conta':rs?'Enviar link':'Entrar'}</button><button type="button" data-ac="back"${b}>Voltar</button></div></form>
+<div class="row"><button class="p" type="submit"${b}>${A.busy?'Aguarde…':nw?'Criar conta':rs?'Enviar link':'Entrar'}</button><button type="button" data-ac="back">Voltar</button>${A.busy?'<button type="button" data-ac="cancel">Cancelar</button>':''}</div></form>
 <div class="acsm">${nw?'<a href="#" data-ac="email">Já tenho conta</a>':rs?'<a href="#" data-ac="email">Lembrei a senha</a>':'<a href="#" data-ac="new">Criar conta</a> · <a href="#" data-ac="reset">Esqueci minha senha</a>'}</div>${e}${m}</div>`}
  return `<div class="card acc"><b>☁️ Conta</b><div class="mut acsm" style="margin:4px 0 8px">Você está jogando como convidado: o perfil fica só neste aparelho. Entre para guardar perfil, conquistas, trilha e configurações na nuvem e jogar com o mesmo perfil em qualquer aparelho.</div>
-<div class="row"><button class="p" data-ac="google"${b}><span class="gg">G</span> Entrar com Google</button><button data-ac="email"${b}>✉️ Entrar com e-mail</button></div>${e}${m}</div>`}
+<div class="row"><button class="p" data-ac="google"${b}><span class="gg">G</span> ${A.busy?'Aguardando o Google…':'Entrar com Google'}</button><button data-ac="email">✉️ Entrar com e-mail</button>${A.busy?'<button data-ac="cancel">Cancelar</button>':''}</div>${accIOSApp()?'<div class="mut acsm" style="margin-top:6px">No app do iPhone, entre com e-mail e senha.</div>':''}${e}${m}</div>`}
 /* Redesenha o Perfil, se estiver aberto, sem apagar o que a pessoa está digitando. */
 function accRefresh(onlyStatus){const pf=$('#pf');if(!pf||!pf.classList.contains('on'))return;
  if(onlyStatus&&ACCT.u&&$('#acst')){const t=document.createElement('div');t.innerHTML=acctCard();const n=t.querySelector('#acst');if(n)$('#acst').textContent=n.textContent;return}
  const f=pf.querySelector('form[data-acf]'),keep=f?{name:f.nm&&f.nm.value,email:f.email&&f.email.value,pw:f.pw&&f.pw.value}:null;
  const y=pf.querySelector('.lr')?pf.querySelector('.lr').scrollTop:0;pfRender();const l=pf.querySelector('.lr');if(l)l.scrollTop=y;
  const g=pf.querySelector('form[data-acf]');if(g&&keep){if(g.nm&&keep.name!=null)g.nm.value=keep.name;if(g.email&&keep.email!=null)g.email.value=keep.email;if(g.pw&&keep.pw)g.pw.value=keep.pw}}
-async function accDo(f){ACCT.busy=true;ACCT.err='';ACCT.msg='';accRefresh();
- try{await accStart();await f()}catch(e){ACCT.err=accErr(e)}ACCT.busy=false;accRefresh()}
+/* Executa uma ação de login. Se ela não responder (ex.: janela do Google presa),
+   o botão "Cancelar" libera a tela, e depois de 2 minutos ela se libera sozinha. */
+async function accDo(f,long){const tk=ACCT.tk=(ACCT.tk||0)+1;ACCT.busy=true;ACCT.err='';ACCT.msg='';accRefresh();
+ const to=setTimeout(()=>{if(ACCT.tk===tk&&ACCT.busy){ACCT.tk++;ACCT.busy=false;ACCT.err=long?'O login pelo Google não respondeu. Tente de novo ou entre com e-mail e senha.':'O servidor não respondeu. Confira a internet e tente de novo.';accRefresh()}},long?120e3:30e3);
+ try{await accStart();await f()}catch(e){if(ACCT.tk===tk)ACCT.err=accErr(e)}clearTimeout(to);if(ACCT.tk!==tk)return;ACCT.busy=false;accRefresh()}
+/* No app instalado no iPhone, a Apple não deixa a janela do Google voltar para o app. */
+const accIOSApp=()=>{try{return appIOS()&&appStandalone()}catch(e){return false}};
 const accOnlineBlock=()=>{if(ONL){ACCT.err='Saia da mesa online antes de entrar ou sair da conta.';accRefresh();return true}return false};
-$('#pf').addEventListener('click',e=>{const el=e.target.closest('[data-ac]');if(!el)return;e.preventDefault();if(ACCT.busy)return;const a=el.dataset.ac;
+$('#pf').addEventListener('click',e=>{const el=e.target.closest('[data-ac]');if(!el)return;e.preventDefault();const a=el.dataset.ac;
+ if(a=='cancel'){ACCT.tk=(ACCT.tk||0)+1;ACCT.busy=false;ACCT.err='';accRefresh();return}
+ if(ACCT.busy&&!['back','email','new','reset'].includes(a))return;if(ACCT.busy){ACCT.tk++;ACCT.busy=false}
  const f=$('#pf').querySelector('form[data-acf]');if(f){if(f.email)ACCT.form.email=f.email.value.trim();if(f.nm)ACCT.form.name=f.nm.value}
  ACCT.err='';ACCT.msg='';if(a!='out')ACCT.cfOut=0;
  if(a=='back'){ACCT.view='';accRefresh();return}
  if(a=='email'||a=='new'||a=='reset'){ACCT.view=a;accRefresh();const i=$('#pf').querySelector(a=='new'?'input[name=nm]':'input[name=email]');if(i)i.focus();return}
  if(accOnlineBlock())return;
- if(a=='google')accDo(()=>ACB.google());
+ if(a=='google'){if(accIOSApp()){ACCT.view='email';ACCT.err='';ACCT.msg='No app instalado no iPhone, a Apple bloqueia a janela de login do Google. Entre aqui com e-mail e senha. Se sua conta é do Google: entre pelo Safari (ou no computador) com o Google, abra o Perfil, toque em "Criar senha" e depois use esse e-mail e senha aqui no app.';accRefresh();return}accDo(()=>ACB.google(),true)}
+ if(a=='mkpw'){ACCT.view='pw';accRefresh();const i=$('#pf').querySelector('input[name=pw]');if(i)i.focus();return}
  if(a=='out')accDo(accLogout)});
 $('#pf').addEventListener('submit',e=>{const f=e.target.closest('form[data-acf]');if(!f)return;e.preventDefault();if(ACCT.busy)return;
- const v=f.dataset.acf,em=(f.email.value||'').trim(),pw=f.pw?f.pw.value:'',nm=f.nm?safeName(f.nm.value):'';ACCT.form.email=em;if(f.nm)ACCT.form.name=f.nm.value;
+ const v=f.dataset.acf,em=(f.email?f.email.value:'').trim(),pw=f.pw?f.pw.value:'',nm=f.nm?safeName(f.nm.value):'';ACCT.form.email=em;if(f.nm)ACCT.form.name=f.nm.value;
  const bad=m=>{ACCT.err=m;ACCT.msg='';accRefresh()};
+ if(v=='pw'){if(pw.length<6)return bad('A senha precisa ter pelo menos 6 caracteres.');return accDo(async()=>{await ACB.linkPw(pw);if(ACCT.u)ACCT.u.pw=true;ACCT.view='';ACCT.msg='Senha criada! Agora você também pode entrar com '+ACCT.u.email+' e essa senha, inclusive no app do iPhone.'})}
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em))return bad('Digite um e-mail válido.');
  if(v=='reset')return accDo(async()=>{await ACB.reset(em);ACCT.view='email';ACCT.msg='Se existir uma conta com esse e-mail, enviamos um link para criar uma senha nova. Olhe também a caixa de spam.'});
  if(accOnlineBlock())return;
