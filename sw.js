@@ -6,11 +6,11 @@
    usa a cópia guardada. Ao atualizar o jogo, não precisa mudar nada aqui.
    Só acrescente na lista FILES se criar um arquivo novo.
    ===================================================================== */
-const CACHE = 'domino-app-v2';
+const CACHE = 'domino-app-v5';
 const FILES = [
   './', 'index.html', 'estilo.css', 'manifest.json',
   '1-motor.js', '2-trilha.js', '3-perfil-replay.js', '4-ajuda.js',
-  '5-efeitos.js', '6-online.js', '7-app.js',
+  '5-efeitos.js', '6-online.js', '7-app.js', '8-analise.js', '9-conta.js', '10-amigos.js',
   'icone.svg', 'icone-192.png', 'icone-512.png',
   'icone-maskable-512.png', 'apple-touch-icon.png', 'favicon-32.png'
 ];

@@ -9,7 +9,7 @@
 const SKINS=[['classico','Clássico','Feltro verde e madeira'],['boteco','Boteco','Mesa de madeira e peças creme'],['praia','Praia','Água turquesa e bambu'],['neon','Neon','Fliperama dos anos 80'],['luxo','Cassino','Veludo vinho e ouro']];
 let LK={skin:'classico',pip:'tema',snd:'on',vol:70,anim:(matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)?'low':'full'};
 try{LK={...LK,...JSON.parse(localStorage.getItem('dominoLook')||'{}')}}catch(e){}
-const lkSave=()=>{try{localStorage.setItem('dominoLook',JSON.stringify(LK))}catch(e){}};
+const lkSave=()=>{try{localStorage.setItem('dominoLook',JSON.stringify(LK))}catch(e){}typeof acctDirty=='function'&&acctDirty()};
 const AN=()=>LK.anim,FULL=()=>LK.anim=='full';
 function lkApply(){const r=document.documentElement;r.dataset.skin=LK.skin;r.dataset.pip=LK.pip;r.dataset.anim=LK.anim;
  const b=$('#snd');if(b)b.textContent=LK.snd=='on'&&LK.vol>0?'🔊':'🔇';
@@ -97,7 +97,7 @@ $('#skins').innerHTML=SKINS.map(([k,n,d])=>`<button type="button" class="sw" dat
 $('#skins').onclick=e=>{const b=e.target.closest('[data-skin]');if(!b)return;LK.skin=b.dataset.skin;lkSave();lkApply();sfx('clack')};
 [['#lk-pip','pip'],['#lk-snd','snd'],['#lk-anim','anim']].forEach(([s,k])=>$(s).onchange=e=>{LK[k]=e.target.value;lkSave();lkApply();if(k=='snd')sfx('ok')});
 $('#lk-vol').oninput=e=>{LK.vol=+e.target.value;lkSave();lkApply()};$('#lk-vol').onchange=()=>sfx('clack');
-$('#snd').onclick=()=>{LK.snd=LK.snd=='on'&&LK.vol>0?'off':'on';if(LK.snd=='on'&&!(LK.vol>0))LK.vol=60;lkSave();lkApply();sfx('ok')};
+const sndB=$('#snd');if(sndB)sndB.onclick=()=>{LK.snd=LK.snd=='on'&&LK.vol>0?'off':'on';if(LK.snd=='on'&&!(LK.vol>0))LK.vol=60;lkSave();lkApply();sfx('ok')};
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button');if(b&&!b.closest('#app .ov')&&!b.dataset.skin&&b.id!='snd'&&!b.closest('.opt'))sfx('tick')},true);
 document.querySelector('h1 .lg').innerHTML=`<span class="t" style="vertical-align:middle">${half(5)}<i></i>${half(2)}</span>`;
 lkApply();if(G&&G.menu)deco();

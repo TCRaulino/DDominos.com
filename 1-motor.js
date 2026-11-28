@@ -63,7 +63,8 @@ function ev(s,m,full){
  return{s:R.reduce((a,r)=>a+r.p,0),r:R.filter(r=>r.x&&Math.abs(r.p)>=1.5)};
 }
 function aiPick(s){const ms=moves(s);if(G.df==0)return ms[Math.floor(Math.random()*ms.length)];
- let best=null,bs=-1e9;ms.forEach(m=>{const v=ev(s,m,G.df==2).s+(G.df==1?Math.random()*3:Math.random()*.3);if(v>bs){bs=v;best=m}});return best}
+ if(G.df>=3&&ms.length>1&&typeof anBot=='function'){try{const m=anBot(s);if(m)return m}catch(e){console.warn(e)}}
+ let best=null,bs=-1e9;ms.forEach(m=>{const v=ev(s,m,G.df>=2).s+(G.df==1?Math.random()*3:Math.random()*.3);if(v>bs){bs=v;best=m}});return best}
 function play(s,m){
  const t=G.hands[s].splice(m.i,1)[0];const L0=G.L,R0=G.R;
  if(m.sd=='L'){G.board.unshift(m.o);G.nl++;G.L=m.o[0];G.lo=s}else{G.board.push(m.o);G.R=m.o[1];G.ro=s}G.last=m.o;
@@ -75,7 +76,7 @@ function pass(s){G.ps[s].add(G.L);G.ps[s].add(G.R);G.pc++;G.hist.push({k:'p',s,L
  if(G.pc>=(G.solo?2:4)){if(G.solo){const sm=[0,2].map(i=>G.hands[i].reduce((x,t)=>x+t[0]+t[1],0));finish(sm[0]<sm[1]?0:sm[1]<sm[0]?2:-1,`Jogo fechado: você ${sm[0]} pontos × robô ${sm[1]} pontos`);return}const sm=k=>[k,k+2].reduce((a,q)=>a+G.hands[q].reduce((x,t)=>x+t[0]+t[1],0),0),a=sm(0),b=sm(1);
   finish(a<b?0:b<a?1:-1,`Jogo fechado: sua dupla ${a} pontos × rivais ${b} pontos`);return}
  G.turn=nx(s);G.dr=0;G.hlpT=false}
-function finish(w,msg){if(G.lrn){G.over=true;return}G.over=true;G.res={w,msg};log(msg);if(G.comp)scoreRound(w);G.newAch=pfUpdate(w);LASTG=snap()}
+function finish(w,msg){if(G.lrn){G.over=true;return}G.over=true;G.res={w,msg};log(msg);if(G.comp)scoreRound(w);G.newAch=pfUpdate(w);LASTG=snap();if(!(window.ONL&&ONL.game))try{rhSave(LASTG)}catch(e){}}
 function nextOpener(){const dr=+$('#dir').value==3?3:1;return M.mode=='solo'?(M.starter+2)%4:(M.starter+dr)%4}
 function openPlay(s,i){const t=G.hands[s].splice(i,1)[0];G.board=[t.slice()];G.nl=0;G.L=t[0];G.R=t[1];G.lo=G.ro=s;G.last=G.board[0];G.pl[t[0]]++;if(t[0]!=t[1])G.pl[t[1]]++;G.pc=0;G.hist.push({k:'m',s,t:t.slice(),L0:t[0],R0:t[1],L1:t[0],R1:t[1],open:1});log(`${NM[s]} abriu com ${t[0]}-${t[1]}`);G.turn=nx(s)}
 function aiOpen(s){const h=G.hands[s];if(G.df==0)return Math.floor(Math.random()*h.length);let b=0,bs=-1;h.forEach((t,i)=>{const v=cnt(h,t[0])+(t[0]==t[1]?3:cnt(h,t[1]))+(t[0]+t[1])*.1+(G.df==1?Math.random()*2:0);if(v>bs){bs=v;b=i}});return b}
@@ -95,34 +96,52 @@ function roundEnd(){const r=M.rounds[M.rounds.length-1],so=M.mode=='solo';
  const who=r.tw==0?(so?'Você marcou':'Seu time marcou'):(so?'O robô marcou':'Os rivais marcaram');
  let h=`<div class="card"><h2 style="margin:0 0 6px;font-size:18px">Partida ${r.n}: ${r.tw<0?'empate, ninguém pontua':who+' '+r.pts+' ponto'+(r.pts==1?'':'s')}</h2><div class="mut">${G.res.msg}</div></div>`+roundFb(r,M.over)+sbCard();
  return h+(M.over?matchReport():`<div class="card"><button class="p" data-next="1">Próxima partida ▶</button> <span class="mut">Abre ${NM[nextOpener()]}${nextOpener()==0?': você escolhe a primeira pedra':''}.</span></div>`)}
-function decLi(x,pre){const[lab,cl]=cls(x.gap),b=x.b,c=x.c,H=x.hr;
+/* Uma jogada citada no feedback, em formato curto, com botão para ver no replay.
+   x.c = o que você jogou · x.b = a melhor jogada · x.why = o motivo em uma frase. */
+function decLi(x,pre,rpk){const[lab,cl]=cls(x.gap),b=x.b,c=x.c;
+ const tile=o=>o.t?o.t.join('-'):o.x.o.join('-'),end=o=>o.ed!=null?o.ed:x.ends[o.x.sd=='L'?0:1];
+ const tx=o=>`<b>${tile(o)}</b> no ${end(o)}${o.a?` <span class="mut">· ${anPct(o.a.win)}</span>`:''}`;
+ const other=x.gap>1.5?`Melhor: ${tx(b)}`:x.alt?`2ª opção: ${tx(x.alt)}`:'';
+ const why=x.why?x.why.txt:'';
+ return `<li class="dl"><div class="dlh"><b>${pre||''}Jogada ${x.n}</b><span class="tg ${cl}">${lab}${x.hp?' · com ajuda':''}</span>${rpk?`<button class="sm2" data-rp="${rpk}" data-ply="${x.ply+1}">▶ ver</button>`:''}</div>
+<div>Você: ${tx(c)}${other?' · '+other:''}</div>${why?`<div class="mut">${why}</div>`:''}</li>`}
+/* Escolhe as jogadas que valem a pena comentar: as mais caras e, se houver, uma boa leitura. */
+function keyDecs(d,nBad){const errs=d.filter(x=>x.gap>5).sort((a,b)=>b.gap-a.gap),meh=d.filter(x=>x.gap>1.5).sort((a,b)=>b.gap-a.gap);
+ const bad=errs.length?errs.slice(0,nBad):meh.filter(x=>x.gap>3).slice(0,1),good=d.filter(x=>x.gap<=1.5&&x.edge>=7.5).sort((a,b)=>b.edge-a.edge).slice(0,1);return{bad,good}}
+/* Formato detalhado (o de antes) de uma jogada, com a chance de vitória e o botão de replay. */
+function decLong(x,H,rpk,pre){const[lab,cl]=cls(x.gap),b=x.b,c=x.c;H=H||x.hr;
  const known=x.ps.map((p,s)=>s?`${NM[s]}: ${p||'nenhum'}`:'').filter(Boolean).join(' · ');
+ const low=(x.un||[]).map((u,n)=>u<=2?`${n}→${u}`:'').filter(Boolean).join(', ');
  const aft=[];for(let j=x.ply+1;j<H.length&&H[j].k=='p';j++)aft.push(NM[H[j].s]+(H[j].d?' comprou':' passou'));
  const bt=b.e.r.filter(r=>r.p>0).sort((p,q)=>q.p-p.p).slice(0,2).map(r=>r.x).join('; ')||'rendia mais vantagem no total';
- const ct=c.e.r.filter(r=>r.p<0).map(r=>r.x).join('; ');
- return `<li><b class="${cl}">${pre?pre+'decisão':'Decisão'} ${x.n} (${lab}${x.hp?', com ajuda':''}).</b> Mão: ${x.h}. Pontas: ${x.ends[0]} e ${x.ends[1]}.<br><span class="mut">Passes até ali — ${known}.</span><br>Você jogou ${c.x.o.join('-')}${ct?', que '+ct:''}. Reação da mesa: ${aft.length?aft.join(' e '):'ninguém passou'}.<br>Melhor: ${b.x.o.join('-')}, pois ${bt}.</li>`}
+ const ct=c.e.r.filter(r=>r.p<0).map(r=>r.x).join('; '),sd=o=>o.x.sd=='L'?'esq.':'dir.';
+ const pc=c.a&&b.a?` <span class="mut">Chance de vencer: ${anPct(c.a.win)} com a sua, ${anPct(b.a.win)} com a melhor.</span>`:'';
+ const same=x.gap<=1.5;
+ return `<li><b class="${cl}">${pre||''}Decisão ${x.n} (${lab}${x.hp?', com ajuda':''}).</b>${rpk?` <button class="sm2" data-rp="${rpk}" data-ply="${x.ply+1}">▶ ver</button>`:''} Mão: ${x.h}. Pontas: ${x.ends[0]} e ${x.ends[1]}.<br><span class="mut">Passes até ali — ${known||'nenhum'}.${low?' Pedras ainda com os outros (número→qtd): '+low+'.':''}</span><br>Você jogou ${c.x.o.join('-')} (${sd(c)})${ct?', que '+ct:''}. Reação da mesa: ${aft.length?aft.join(' e '):'ninguém passou'}.<br>${same?'Foi a melhor escolha':`Melhor: ${b.x.o.join('-')} (${sd(b)}), pois ${bt}`}.${x.why&&x.why.txt?` ${x.why.txt}`:''}${pc}</li>`}
+function tipsOf(list,max){const out=[];list.forEach(x=>{const t=x.why&&anTip(x.why.k);if(t&&!out.includes(t))out.push(t)});return out.slice(0,max)}
 function roundFb(r,last){
- const so=M.mode=='solo',d=r.dec,H=r.hist,ok=d.filter(x=>x.gap<=5).length,rv=s=>so?s!=0:s%2==1,opp=so?'o robô':'os rivais';
- let forced=0,self=0;H.forEach((e,i)=>{if(e.k!='p')return;let j=i-1;while(j>0&&H[j].k!='m')j--;if(rv(e.s)&&H[j].s==0)forced++;if(!so&&e.s==2&&H[j].s==0)self++});
- const good=[];
- if(d.length)good.push(ok==d.length?`Todas as ${d.length} decisões com escolha real foram boas ou ótimas.`:`${ok} de ${d.length} decisões foram boas ou ótimas.`);
- if(forced)good.push(`Suas jogadas deixaram ${opp} sem jogada ${forced} vez${forced>1?'es':''}.`);
- if(r.tw==0)good.push(`${r.kind=='out'?'Batida':'Fechamento'} a seu favor: ${r.pts} ponto${r.pts==1?'':'s'}.`);
+ const so=M.mode=='solo',d=r.dec,H=r.hist,ok=d.filter(x=>x.gap<=5).length,rv=s=>so?s!=0:s%2==1,opp=so?'o robô':'os rivais',rk='r'+r.n;
+ let forced=0;H.forEach((e,i)=>{if(e.k!='p')return;let j=i-1;while(j>0&&H[j].k!='m')j--;if(rv(e.s)&&H[j].s==0)forced++});
+ const {bad,good}=keyDecs(d,2);
  let op='';const h0=H[0];
  if(h0&&h0.open&&h0.s==0){const oh=r.init[0],sc=t=>cnt(oh,t[0])+(t[0]==t[1]?3:cnt(oh,t[1]))+(t[0]+t[1])*.1;const bt=oh.reduce((a,t)=>sc(t)>sc(a)?t:a,oh[0]),ot=h0.t;
-  if(sc(bt)-sc(ot)>=2)op=`<li><b>Abertura.</b> Você saiu com ${ot.join('-')}. ${bt.join('-')} era uma saída mais forte: ${bt[0]==bt[1]?'o dobre sai cedo da mão e define a ponta':'abre um número em que você tinha '+Math.max(cnt(oh,bt[0]),cnt(oh,bt[1]))+' pedras'}.</li>`;
-  else good.push(`Boa abertura com ${ot.join('-')}.`)}
- const bad=d.filter(x=>x.gap>1.5).sort((a,b)=>b.gap-a.gap).slice(0,2),keys=new Set();
- bad.forEach(x=>{const ck=new Set(x.c.e.r.map(q=>q.k));x.c.e.r.filter(q=>q.p<0&&!x.b.e.r.some(z=>z.k==q.k&&z.p<0)).forEach(q=>keys.add(q.k));x.b.e.r.filter(q=>q.p>0&&q.k!='peso'&&!ck.has(q.k)).forEach(q=>keys.add(q.k))});
- const att=[...keys].slice(0,2).map(k=>P[k]);
- if(self>=2)att.push(`Você deixou o parceiro sem jogada ${self} vezes. ${P['parceiro-passou']}`);
- if(r.tw==1&&r.kind=='out'&&r.pips[0]>=20)att.push(`Sobraram ${r.pips[0]} pontos no seu lado quando ${r.kind=='out'?NM[r.out]+' bateu':''}. ${P.peso}`);
+  if(sc(bt)-sc(ot)>=2)op=`<li class="dl"><b>Abertura</b>: você saiu com <b>${ot.join('-')}</b>; <b>${bt.join('-')}</b> ${bt[0]==bt[1]?'tirava um dobre da mão logo cedo':'abria um número em que você tinha '+Math.max(cnt(oh,bt[0]),cnt(oh,bt[1]))+' pedras'}.</li>`}
+ const att=tipsOf(bad,1);
  if(!last){const need=[M.target-M.sc[0],M.target-M.sc[1]];
-  if(need[1]<=40)att.push(`${so?'O robô está':'Os rivais estão'} a ${need[1]} pontos dos ${M.target}: evite entregar uma batida e descarte pedras pesadas cedo.`);
-  if(need[0]<=40)att.push(`Você está a ${need[0]} pontos dos ${M.target}: uma batida pode decidir, então mantenha jogadas livres e conte as pedras.`);
-  if(!att.length)att.push('Continue lendo os passes e contando as pedras de cada número: elas mostram o que os adversários seguram.')}
+  if(need[1]<=40)att.push(`${so?'O robô está':'Os rivais estão'} a ${need[1]} pontos: não entregue batida e solte as pedras pesadas.`);
+  else if(need[0]<=40)att.push(`Faltam ${need[0]} pontos para você: uma batida pode decidir.`)}
+ const list=bad.map(x=>decLi(x,'',rk)).join('')+good.map(x=>decLi(x,'✨ ',rk)).join('')+op;
+ return `<div class="card"><h3>Partida ${r.n} em resumo</h3><div class="pills">${d.length?`<span class="pill">🎯 ${ok}/${d.length} decisões boas</span>`:''}${forced?`<span class="pill">🔒 travou ${opp} ${forced}×</span>`:''}${r.tw==0?`<span class="pill">💰 +${r.pts}</span>`:''}</div>
+${list?`<ul class="dls">${list}</ul>`:'<p class="g" style="margin:6px 0">Nenhuma jogada custou caro nesta partida.</p>'}${att.length?`<div class="att">👀 ${att.slice(0,2).join(' ')}</div>`:''}${(()=>{
+ const gd=[];if(d.length)gd.push(ok==d.length?`Todas as ${d.length} decisões com escolha real foram boas ou ótimas.`:`${ok} de ${d.length} decisões foram boas ou ótimas.`);
+ if(forced)gd.push(`Suas jogadas deixaram ${opp} sem jogada ${forced} vez${forced>1?'es':''}.`);
+ if(r.tw==0)gd.push(`${r.kind=='out'?'Batida':'Fechamento'} a seu favor: ${r.pts} ponto${r.pts==1?'':'s'}.`);
+ let self=0;if(!so)H.forEach((e,i)=>{if(e.k!='p'||e.s!=2)return;let j=i-1;while(j>0&&H[j].k!='m')j--;if(H[j].s==0)self++});
+ const at2=[];if(self>=2)at2.push(`Você deixou o parceiro sem jogada ${self} vezes. ${P['parceiro-passou']}`);
+ if(r.tw==1&&r.kind=='out'&&r.pips[0]>=20)at2.push(`Sobraram ${r.pips[0]} pontos no seu lado quando ${NM[r.out]} bateu. ${P.peso}`);
+ const rev=d.filter(x=>x.gap>1.5).sort((a,b)=>b.gap-a.gap).slice(0,4).sort((a,b)=>a.n-b.n);
  const ul=a=>`<ul>${a.map(x=>`<li>${x}</li>`).join('')}</ul>`;
- return `<div class="card"><h3>Feedback da partida ${r.n}</h3>${good.length?`<b class="g">O que foi bem</b>${ul(good)}`:''}${bad.length||op?`<b>O que poderia ter sido diferente</b><ul>${op}${bad.map(x=>decLi(x,'')).join('')}</ul>`:''}${!last&&att.length?`<b>Atenção para as próximas partidas</b>${ul(att)}`:''}</div>`}
+ return `<details class="mdet"><summary>Mais detalhes da partida ${r.n}</summary>${gd.length?`<b class="g">O que foi bem</b>${ul(gd)}`:''}${rev.length?`<b>O que poderia ter sido diferente</b><ul>${rev.map(x=>decLong(x,H,rk)).join('')}</ul>`:''}${at2.length?`<b>Atenção</b>${ul(at2)}`:''}</details>`})()}</div>`}
 function goals(d,so){
  const GR={eu:['peso','dobre','forte'],par:['parceiro-passou','cobriu-parceiro','apoio'],riv:['trava','lider','esgotado','abre-rival']};
  const GN={eu:'Sua mão: descarte e naipe forte',par:'Parceiro: proteger e apoiar',riv:'Rivais: ler e travar'};
@@ -144,7 +163,7 @@ function matchReport(){
  const forced=R.reduce((a,r)=>{let n=0;r.hist.forEach((e,i)=>{if(e.k=='p'&&rv(e.s)){let j=i-1;while(j>0&&r.hist[j].k!='m')j--;if(r.hist[j].s==0)n++}});return a+n},0);
  const per=R.map(r=>{const okk=r.dec.filter(x=>x.gap<=5).length;return `<li><b>Partida ${r.n}:</b> ${r.tw<0?'empate':r.tw==0?'vitória':'derrota'}${r.tw>=0?` (${r.pts} pts)`:''}, ${r.kind=='out'?NM[r.out]+' bateu':'jogo fechado'}. Sobraram ${r.pips[0]} pts no seu lado e ${r.pips[1]} no dos adversários${r.dec.length?`; decisões boas: ${okk} de ${r.dec.length}`:''}. <button class="sm2" data-rp="r${r.n}">▶ replay</button></li>`}).join('');
  const bad=d.filter(x=>x.gap>5).sort((a,b)=>b.gap-a.gap).slice(0,5).length?d.filter(x=>x.gap>5).sort((a,b)=>b.gap-a.gap).slice(0,5):d.filter(x=>x.gap>1.5).sort((a,b)=>b.gap-a.gap).slice(0,3);
- const li=bad.map(x=>decLi(x,`Partida ${x.rn}, `)).join('');
+ const li=bad.slice(0,4).map(x=>decLi(x,`P${x.rn} · `,'r'+x.rn)).join('');
  const wl=won.length?won.reduce((a,r)=>r.pts>a.pts?r:a):null,ll=lost.length?lost.reduce((a,r)=>r.pts>a.pts?r:a):null;
 const cl1=d.filter(x=>x.gap<=1.5).length,cl2=d.filter(x=>x.gap>1.5&&x.gap<=5).length,cl3=d.filter(x=>x.gap>5&&x.gap<=10).length,cl4=d.filter(x=>x.gap>10).length;
  const half=Math.ceil(R.length/2),pa=a=>a.length?Math.round(100*a.filter(x=>x.gap<=5).length/a.length):null,a1=pa(R.slice(0,half).flatMap(r=>r.dec)),a2=pa(R.slice(half).flatMap(r=>r.dec)),acc=d.length?Math.round(100*ok/d.length):null;
@@ -161,8 +180,8 @@ ${stats}${macro}
 <div class="card"><h3>${so?'Seus objetivos':'Seus três objetivos'} na competição</h3><div class="mut">${d.length?`Decisões com escolha real: ${d.length}. Ótimas ou boas: ${ok} (${Math.round(100*ok/d.length)}%).`:'Poucas decisões reais, com muitas jogadas forçadas.'}</div>${g.bars}</div>
 <div class="card"><h3>Passes e pressão</h3><p>Vezes em que seu lado ${so?'comprou ou passou':'passou'}: ${myP}. Dos adversários: ${thP}. Adversários sem jogada logo depois de uma jogada sua: ${forced}.</p></div>
 <div class="card"><h3>Partida a partida</h3><ul>${per}</ul></div>
-<div class="card"><h3>Decisões para rever</h3>${li?`<ul>${li}</ul>`:'<p class="g">Nenhuma decisão ficou muito longe do ideal.</p>'}</div>
-${g.plan?`<div class="card"><h3>Para a próxima competição</h3><ul>${g.plan}</ul></div>`:''}
+<div class="card"><h3>Jogadas-chave da competição</h3>${li?`<ul class="dls">${li}</ul>`:'<p class="g">Nenhuma decisão ficou muito longe do ideal.</p>'}${bad.length?`<details class="mdet"><summary>Mais detalhes das jogadas</summary><ul>${bad.slice().sort((a,b)=>a.rn-b.rn||a.n-b.n).map(x=>decLong(x,null,'r'+x.rn,`Partida ${x.rn}, `)).join('')}</ul></details>`:''}</div>
+${(()=>{let t=tipsOf(bad,2);if(!t.length&&g.plan)t=[g.plan.replace(/<\/?li>/g,'').split('.')[0]+'.'];return t.length?`<div class="card"><h3>Para a próxima competição</h3><ul>${t.map(x=>`<li>${x}</li>`).join('')}</ul></div>`:''})()}
 <div class="card"><button class="p" data-newcomp="1">Nova partida ou competição</button></div>`}
 
 function step(){
@@ -172,10 +191,14 @@ function step(){
  else{const sp=+$('#sp').value,g=G;if(!sp){G.waiting=true;render()}else setTimeout(()=>{if(G===g)aiAct()},sp)}
 }
 function userPlay(m){
- const ms=moves(0),keys=new Set(ms.map(x=>x.i+':'+endOf(x)+':'+(x.sd=='L'?G.R:G.L)));
- if(keys.size>1){
-  const all=ms.map(x=>({x,e:ev(0,x,true)})),best=all.reduce((a,b)=>b.e.s>a.e.s?b:a),ch=all.find(a=>a.x==m)||all.find(a=>a.x.i==m.i&&a.x.sd==m.sd);
-  G.dec.push({n:G.dec.length+1,gap:best.e.s-ch.e.s,b:best,c:ch,h:G.hands[0].map(t=>t.join('-')).join(' '),hr:G.hist,hp:!!G.hlpT,ply:G.hist.length,ends:[G.L,G.R],ps:G.ps.map(z=>[...z].sort().join(',')),un:[0,1,2,3,4,5,6].map(n=>7-G.pl[n]-cnt(G.hands[0],n))});
+ const ms=moves(0),ky=x=>x.i+':'+endOf(x)+':'+(x.sd=='L'?G.R:G.L),keys=new Set(ms.map(ky));
+ if(keys.size>1&&!(window.ONL&&ONL.game)){
+  /* Avalia todas as jogadas possíveis olhando à frente (8-analise.js) e guarda a decisão para o feedback. */
+  const an=anRun(),wrap=k=>k&&{x:k.m,t:k.t,ed:k.ed,ne:k.ne,a:k,e:ev(0,k.m,true)};
+  const ck=an.find(k=>k.key==ky(m))||an[an.length-1],best=wrap(an[0]),ch=wrap(ck),isBest=ck===an[0],sec=wrap(an[1]);
+  G.dec.push({n:G.dec.length+1,gap:anGap(an[0],ck),b:best,c:ch,alt:isBest?sec:null,edge:isBest&&an[1]?anGap(an[0],an[1]):0,
+   why:isBest?(sec?anWhy(best,sec):null):anWhy(best,ch),sims:an[0].sims,
+   h:G.hands[0].map(t=>t.join('-')).join(' '),hr:G.hist,hp:!!G.hlpT,ply:G.hist.length,ends:[G.L,G.R],ps:G.ps.map(z=>[...z].sort().join(',')),un:[0,1,2,3,4,5,6].map(n=>7-G.pl[n]-cnt(G.hands[0],n))});
  }
  G.sel=null;play(0,m);step();
 }
@@ -235,49 +258,41 @@ function boardHtml(){
   const fd=o.dbl?(o.d[0]?'column':'row'):o.d[0]>0?'row':o.d[0]<0?'row-reverse':o.d[1]>0?'column':'column-reverse';
   return `<span class="t ${fd.startsWith('column')?'v':''} ${o.t===G.last?'last':''}" data-bi="${G.board.indexOf(o.t)}" style="left:${380+o.c[0]-w/2}px;top:${380+o.c[1]-h/2}px;width:${w}px;height:${h}px;flex-direction:${fd};--pp:${Math.round(U*.19)}px">${half(o.n)}<i></i>${half(o.f)}</span>`}).join('');
 }
+/* Feedback da partida casual: curto, com as jogadas-chave e os detalhes recolhidos. */
 function report(){
- const w=G.res.w,d=G.dec,H=G.hist,ok=d.filter(x=>x.gap<=5).length;
- const GR={eu:['peso','dobre','forte'],par:['parceiro-passou','cobriu-parceiro','apoio'],riv:['trava','lider','esgotado','abre-rival']};
- const GN={eu:'Sua mão: descarte e naipe forte',par:'Parceiro: proteger e apoiar',riv:'Rivais: ler e travar'};
- const sc={eu:[0,0],par:[0,0],riv:[0,0]};
- d.forEach(x=>{const bk=x.b.e.r,ck=x.c.e.r;for(const g in GR)GR[g].forEach(k=>{
-  const bp=bk.some(r=>r.k==k&&r.p>0),cp=ck.some(r=>r.k==k&&r.p>0),cn=ck.some(r=>r.k==k&&r.p<0)&&!bk.some(r=>r.k==k&&r.p<0);
-  if(bp){sc[g][1]++;if(cp)sc[g][0]++}else if(cn)sc[g][1]++})});
- const pc=g=>sc[g][1]?Math.round(100*sc[g][0]/sc[g][1]):null;
- const bars=Object.keys(GR).filter(g=>!(G.solo&&g=='par')).map(g=>`<div class="k"><span>${GN[g]}</span><div class="bar"><span style="width:${pc(g)??0}%"></span></div><b>${pc(g)==null?'—':pc(g)+'%'}</b></div>`).join('');
- const ev=[];H.forEach((e,i)=>{if(e.k!='p')return;let j=i-1;while(j>0&&H[j].k!='m')j--;ev.push({e,c:H[j]})});
- const SE=G.solo?[0,2]:[0,1,2,3],isRv=s=>G.solo?s!=0:s%2==1,rp=ev.filter(x=>isRv(x.e.s)).length,tp=ev.length-rp,mine=ev.filter(x=>isRv(x.e.s)&&x.c.s==0).length,self=G.solo?0:ev.filter(x=>x.e.s==2&&x.c.s==0).length;
- const bp=[0,0];H.forEach((e,i)=>{if(!G.solo&&e.k=='m'&&[1,2,3].every(q=>H[i+q]&&H[i+q].k=='p'))bp[isRv(e.s)?1:0]++});
+ const w=G.res.w,d=G.dec,H=G.hist,ok=d.filter(x=>x.gap<=5).length,g=goals(d,G.solo),so=G.solo;
+ const evp=[];H.forEach((e,i)=>{if(e.k!='p')return;let j=i-1;while(j>0&&H[j].k!='m')j--;evp.push({e,c:H[j]})});
+ const SE=so?[0,2]:[0,1,2,3],isRv=s=>so?s!=0:s%2==1,rp=evp.filter(x=>isRv(x.e.s)).length,tp=evp.length-rp,mine=evp.filter(x=>isRv(x.e.s)&&x.c.s==0).length,self=so?0:evp.filter(x=>x.e.s==2&&x.c.s==0).length;
+ const sm=h=>h.reduce((a,t)=>a+t[0]+t[1],0),tl2=h=>h.map(t=>t.join('-')).join(' ');
+ const hs=SE.map(s=>{const h=G.init[s];return `<div><b>${NM[s]}</b> (${sm(h)} pts): ${tl2(h)}</div>`}).join('')+(so?`<div><b>Monte no início</b>: ${tl2(G.mt0)}</div>`:'');
+ const left=SE.map(s=>{const h=G.hands[s];return `${NM[s]}: ${h.length?tl2(h)+' ('+sm(h)+' pts)':'sem pedras'}`}).join(' · ');
+ const {bad,good}=keyDecs(d,3),errs=d.filter(x=>x.gap>5).length;
+ const bp=[0,0];H.forEach((e,i)=>{if(!so&&e.k=='m'&&[1,2,3].every(q=>H[i+q]&&H[i+q].k=='p'))bp[isRv(e.s)?1:0]++});
  const pl=SE.map(s=>`${NM[s]} ${H.filter(e=>e.k=='m'&&e.s==s).length}`).join(' · ');
  const ph=[['Abertura',0,8],['Meio de jogo',8,20],['Final',20,99]].map(([n,a,b])=>{const z=d.filter(x=>x.ply>=a&&x.ply<b);return z.length?`${n}: ${z.filter(x=>x.gap<=5).length} de ${z.length} decisões boas`:null}).filter(Boolean).join(' · ');
- const mm=ev.slice(0,8).map(x=>`<li><span class="${isRv(x.e.s)?'g':'b'}">${NM[x.e.s]} ${x.e.d?'comprou '+x.e.d+(x.e.d>1?' pedras':' pedra'):'passou'}</span> (pontas ${x.e.L} e ${x.e.R}), depois de ${NM[x.c.s]} jogar ${x.c.t.join('-')}</li>`).join('');
- const sm=h=>h.reduce((a,t)=>a+t[0]+t[1],0),tl2=h=>h.map(t=>t.join('-')).join(' ');
- const hs=SE.map(s=>{const h=G.init[s];return `<div><b>${NM[s]}</b> (${sm(h)} pts): ${tl2(h)}</div>`}).join('')+(G.solo?`<div><b>Monte no início</b>: ${tl2(G.mt0)}</div>`:'');
+ const mm=evp.slice(0,8).map(x=>`<li><span class="${isRv(x.e.s)?'g':'b'}">${NM[x.e.s]} ${x.e.d?'comprou '+x.e.d+(x.e.d>1?' pedras':' pedra'):'passou'}</span> (pontas ${x.e.L} e ${x.e.R}), depois de ${NM[x.c.s]} jogar ${x.c.t.join('-')}</li>`).join('');
  const tmh=[...G.init[0],...G.init[2]],rvh=[...G.init[1],...G.init[3]];
- const dom=G.solo?'':[0,1,2,3,4,5,6].map(n=>[n,cnt(tmh,n),cnt(rvh,n)]).sort((a,b)=>Math.abs(b[1]-b[2])-Math.abs(a[1]-a[2])).slice(0,2).filter(x=>x[1]!=x[2]).map(([n,a,b])=>a>b?`seu time tinha ${a} pedras de ${n} contra ${b} dos rivais`:`os rivais tinham ${b} pedras de ${n} contra ${a} do seu time`).join('; ');
- const left=SE.map(s=>{const h=G.hands[s];return `${NM[s]}: ${h.length?tl2(h)+' ('+sm(h)+' pts)':'sem pedras'}`}).join(' · ');
- const bad=d.filter(x=>x.gap>1.5).sort((a,b)=>b.gap-a.gap).slice(0,5).sort((a,b)=>a.n-b.n);
- const li=bad.map(x=>{const[lab,cl]=cls(x.gap),b=x.b,c=x.c;
-  const known=x.ps.map((p,s)=>s?`${NM[s]}: ${p||'nenhum'}`:'').filter(Boolean).join(' · ');
-  const low=x.un.map((u,n)=>u<=2?`${n}→${u}`:'').filter(Boolean).join(', ');
-  const aft=[];for(let j=x.ply+1;j<H.length&&H[j].k=='p';j++)aft.push(NM[H[j].s]+(H[j].d?' comprou':' passou'));
-  const bt=b.e.r.filter(r=>r.p>0).sort((p,q)=>q.p-p.p).slice(0,2).map(r=>r.x).join('; ')||'rendia mais vantagem no total';
-  const ct=c.e.r.filter(r=>r.p<0).map(r=>r.x).join('; ');
-  return `<li><b class="${cl}">Decisão ${x.n} (${lab}${x.hp?', com ajuda':''}).</b> Mão: ${x.h}. Pontas: ${x.ends[0]} e ${x.ends[1]}.<br><span class="mut">Passes até ali — ${known}.${low?' Pedras ainda com os outros (número→qtd): '+low+'.':''}</span><br>Você jogou ${c.x.o.join('-')} (${c.x.sd=='L'?'esq.':'dir.'})${ct?', que '+ct:''}. Reação da mesa: ${aft.length?aft.join(' e '):'ninguém passou'}.<br>Melhor: ${b.x.o.join('-')} (${b.x.sd=='L'?'esq.':'dir.'}), pois ${bt}.</li>`}).join('');
- const gs=Object.keys(GR).filter(g=>pc(g)!=null).sort((a,b)=>pc(a)-pc(b)),wk=gs[0],bst=gs[gs.length-1];
- const plan=wk&&pc(wk)<100?GR[wk].map(k=>`<li>${P[k]}</li>`).join(''):'';
- return `<div class="card"><h2 style="margin:0 0 6px;font-size:18px">${w==0?(G.solo?'Você venceu!':'Vitória do seu time!'):w<0?'Empate':G.solo?NM[w]+' venceu':'Os rivais venceram'}</h2><div class="mut">${G.res.msg}</div>
- <p>${d.length?`Decisões com escolha real: ${d.length}. Ótimas ou boas: ${ok} (${Math.round(100*ok/d.length)}%). ${ph}.`:'Poucas decisões reais nesta partida (muitas jogadas forçadas).'}</p></div>
- <div class="card"><h3>${G.solo?'Seus objetivos':'Seus três objetivos'}</h3><div class="mut" style="font-size:13px">${G.solo?'No solo você enfrenta um único adversário: vence quem equilibra a própria mão e a pressão sobre ele, forçando-o a comprar do monte. A barra mostra':'Uma pesquisa acadêmica sobre agentes de dominó em duplas concluiu que vence mais quem equilibra três metas: a própria mão, o parceiro e o bloqueio dos rivais. A barra mostra'} em quantas oportunidades você escolheu a jogada que cumpria cada meta.</div>${bars}${bst&&wk!=bst&&pc(bst)>=70?`<div class="g">Ponto forte: ${GN[bst].split(':')[0].toLowerCase()}.</div>`:''}</div>
- <div class="card"><h3>O jogo inteiro</h3><p>${G.solo?`Você comprou ou passou ${tp} vez(es); o robô, ${rp}.`:`Passes: seu time ${tp}, rivais ${rp}.`} Adversários travados logo após jogadas suas: ${mine}.${G.solo?'':` Vezes em que sua jogada deixou o parceiro sem opção: ${self}.`}${bp[0]?` Mesa travada a seu favor (os três seguintes passaram): ${bp[0]}.`:''}${bp[1]?` Mesa travada contra você: ${bp[1]}.`:''}<br><span class="mut">Pedras jogadas: ${pl}.</span></p>${mm?`<b>Lances com passe</b><ul>${mm}</ul>`:''}</div>
- <div class="card"><h3>Mãos reveladas</h3><div style="font-size:14px">${hs}</div><p class="mut">${dom?'Controle de naipes: '+dom+'. ':''}No fim sobraram: ${left}.</p></div>
- <div class="card"><h3>Decisões para rever</h3>${li?`<ul>${li}</ul>`:'<p class="g">Nenhuma decisão ficou muito longe do ideal.</p>'}</div>
- ${plan?`<div class="card"><h3>Para a próxima partida</h3><ul>${plan}</ul></div>`:''}
-`;
+ const dom=so?'':[0,1,2,3,4,5,6].map(n=>[n,cnt(tmh,n),cnt(rvh,n)]).sort((a,b)=>Math.abs(b[1]-b[2])-Math.abs(a[1]-a[2])).slice(0,2).filter(x=>x[1]!=x[2]).map(([n,a,b])=>a>b?`seu time tinha ${a} pedras de ${n} contra ${b} dos rivais`:`os rivais tinham ${b} pedras de ${n} contra ${a} do seu time`).join('; ');
+ const rev=d.filter(x=>x.gap>1.5).sort((a,b)=>b.gap-a.gap).slice(0,5).sort((a,b)=>a.n-b.n);
+ const GN0={eu:'Sua mão: descarte e naipe forte',par:'Parceiro: proteger e apoiar',riv:'Rivais: ler e travar'};
+
+ let tips=tipsOf(bad,2);if(!tips.length&&g.plan)tips=[g.plan.replace(/<\/?li>/g,'').split('.')[0]+'.'];
+ const list=bad.map(x=>decLi(x,'','cur')).join('')+good.map(x=>decLi(x,'✨ ','cur')).join('');
+ return `<div class="card"><h2 style="margin:0 0 4px;font-size:18px">${w==0?(so?'Você venceu!':'Vitória do seu time!'):w<0?'Empate':so?NM[w]+' venceu':'Os rivais venceram'}</h2><div class="mut">${G.res.msg}</div>
+ <div class="pills">${d.length?`<span class="pill">🎯 ${ok}/${d.length} decisões boas</span>`:''}${errs?`<span class="pill">⚠️ ${errs} ${errs>1?'jogadas caras':'jogada cara'}</span>`:''}${mine?`<span class="pill">🔒 travou ${so?'o robô':'os rivais'} ${mine}×</span>`:''}${self?`<span class="pill">🙈 travou o parceiro ${self}×</span>`:''}</div></div>
+ ${d.length?`<div class="card"><h3>Jogadas-chave</h3>${list?`<ul class="dls">${list}</ul>`:'<p class="g" style="margin:6px 0">Nenhuma jogada custou caro. Boa partida!</p>'}<div class="mut" style="font-size:12px">% = chance de vencer, estimada simulando o resto da partida só com o que você via: sua mão, a mesa e os passes.</div></div>`:''}
+ ${tips.length?`<div class="card"><h3>Para a próxima</h3><ul>${tips.map(t=>`<li>${t}</li>`).join('')}</ul></div>`:''}
+ <details class="card mdet"><summary><b>Mais detalhes da partida</b></summary>
+ <div class="dsec"><p>${d.length?`Decisões com escolha real: ${d.length}. Ótimas ou boas: ${ok} (${Math.round(100*ok/d.length)}%). ${ph}.`:'Poucas decisões reais nesta partida (muitas jogadas forçadas).'}</p></div>
+ <div class="dsec"><h3>${so?'Seus objetivos':'Seus três objetivos'}</h3><div class="mut" style="font-size:13px">${so?'No solo você enfrenta um único adversário: vence quem equilibra a própria mão e a pressão sobre ele, forçando-o a comprar do monte. A barra mostra':'Vence mais quem equilibra três metas: a própria mão, o parceiro e o bloqueio dos rivais. A barra mostra'} em quantas oportunidades você escolheu a jogada que cumpria cada meta.</div>${g.bars}${g.bst&&g.wk!=g.bst&&g.pc(g.bst)>=70?`<div class="g">Ponto forte: ${GN0[g.bst].split(':')[0].toLowerCase()}.</div>`:''}</div>
+ <div class="dsec"><h3>O jogo inteiro</h3><p>${so?`Você comprou ou passou ${tp} vez(es); o robô, ${rp}.`:`Passes: seu time ${tp}, rivais ${rp}.`} Adversários travados logo após jogadas suas: ${mine}.${so?'':` Vezes em que sua jogada deixou o parceiro sem opção: ${self}.`}${bp[0]?` Mesa travada a seu favor (os três seguintes passaram): ${bp[0]}.`:''}${bp[1]?` Mesa travada contra você: ${bp[1]}.`:''}<br><span class="mut">Pedras jogadas: ${pl}.</span></p>${mm?`<b>Lances com passe</b><ul>${mm}</ul>`:''}</div>
+ <div class="dsec"><h3>Mãos reveladas</h3><div style="font-size:14px">${hs}</div><p class="mut">${dom?'Controle de naipes: '+dom+'. ':''}No fim sobraram: ${left}.</p></div>
+ <div class="dsec"><h3>Decisões para rever</h3>${rev.length?`<ul>${rev.map(x=>decLong(x,H,'cur')).join('')}</ul>`:'<p class="g">Nenhuma decisão ficou muito longe do ideal.</p>'}</div>
+ ${g.plan?`<div class="dsec"><h3>Para a próxima partida</h3><ul>${g.plan}</ul></div>`:''}</details>`;
 }
 $('#app').addEventListener('click',e=>{
  const hb=e.target.closest('[data-help]');if(hb){hpStart();return}
- const rpb=e.target.closest('[data-rp]');if(rpb){rpOpen(rpb.dataset.rp);return}
+ const rpb=e.target.closest('[data-rp]');if(rpb){rpOpen(rpb.dataset.rp,+rpb.dataset.ply||0);return}
  const md=e.target.closest('[data-mode]');if(md){G.pick=md.dataset.mode;render();return}
  const fm=e.target.closest('[data-fmt]');if(fm){const m=G.pick;if(fm.dataset.fmt=='comp'){M={mode:m,sc:[0,0],rounds:[],n:0,starter:0,target:100,over:false};newGame(m,true)}else{M=null;newGame(m,false)}return}
  if(e.target.closest('[data-back]')){G.pick=null;render();return}
@@ -295,7 +310,7 @@ $('#app').addEventListener('click',e=>{
 });
 const CFG=['df','sp','dir','opn','hlp'];
 try{const c=JSON.parse(localStorage.getItem('dominoCfg')||'{}');CFG.forEach(k=>{if(c[k]!=null)$('#'+k).value=c[k]})}catch(e){}
-CFG.forEach(k=>$('#'+k).onchange=()=>{try{localStorage.setItem('dominoCfg',JSON.stringify(Object.fromEntries(CFG.map(q=>[q,$('#'+q).value]))))}catch(e){}
+CFG.forEach(k=>$('#'+k).onchange=()=>{try{localStorage.setItem('dominoCfg',JSON.stringify(Object.fromEntries(CFG.map(q=>[q,$('#'+q).value]))))}catch(e){}typeof acctDirty=='function'&&acctDirty();
  if(k=='df'&&G&&!G.menu)G.df=+$('#df').value;if(k=='sp'&&G&&G.waiting&&+$('#sp').value)aiAct()});
 $('#cg').onclick=()=>$('#cfg').classList.add('on');$('#cfgx').onclick=()=>$('#cfg').classList.remove('on');
 $('#cfg').onclick=e=>{if(e.target.id=='cfg')$('#cfg').classList.remove('on')};

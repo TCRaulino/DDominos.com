@@ -7,7 +7,7 @@
 const LVN=['Bronze','Prata','Ouro','Mestre'],LVI=['🥉','🥈','🥇','🏆'],LVD=['Iniciante','Intermediário','Avançado','Competitivo'];
 let LP={done:{}},LS={view:'map'},LT={n:0,ok:0,streak:0,best:0};
 try{LP=JSON.parse(localStorage.getItem('dominoLearn')||'null')||LP}catch(e){}
-const lSave=()=>{try{localStorage.setItem('dominoLearn',JSON.stringify(LP))}catch(e){}};
+const lSave=()=>{try{localStorage.setItem('dominoLearn',JSON.stringify(LP))}catch(e){}typeof acctDirty=='function'&&acctDirty()};
 const lr=n=>Math.floor(Math.random()*n),lsh=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=lr(i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
 const lall=()=>{const r=[];for(let a=0;a<7;a++)for(let b=a;b<7;b++)r.push([a,b]);return r};
 const lfit=(t,e)=>e.includes(t[0])||e.includes(t[1]),ltn=t=>t.join('-');

@@ -11,9 +11,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="stylesheet" href="estilo.css"></head><body><main>
 <h1><span class="lg"></span> Simulador de Dominó</h1>
-<div class="card row"><button class="p" id="nw" title="Nova partida">▶<span class="tx"> Nova partida</span></button><button id="cg" title="Configurações">⚙<span class="tx"> Configurações</span></button><button id="rb" title="Regras">📖<span class="tx"> Regras</span></button><button id="lb" title="Aprender">🎓<span class="tx"> Aprender</span></button><button id="pb" title="Perfil">🏅<span class="tx"> Perfil</span></button><button id="rpt" title="Replay">🎬<span class="tx"> Replay</span></button><button id="snd" title="Som">🔊</button><button id="inst" title="Instalar o app" hidden>📲<span class="tx"> Instalar</span></button></div>
+<div class="card row"><button class="p" id="nw" title="Nova partida">▶<span class="tx"> Nova partida</span></button><button id="cg" title="Configurações">⚙<span class="tx"> Configurações</span></button><button id="rb" title="Regras">📖<span class="tx"> Regras</span></button><button id="lb" title="Aprender">🎓<span class="tx"> Aprender</span></button><button id="pb" title="Perfil">🏅<span class="tx"> Perfil</span></button><button id="frbt" title="Amigos">👥<span class="tx"> Amigos</span><i class="bdg" hidden></i></button><button id="inst" title="Instalar o app" hidden>📲<span class="tx"> Instalar</span></button></div>
 <div id="cfg" class="modal"><div class="card"><h3>Configurações</h3>
-<label>Dificuldade do robô<select id="df"><option value="0">Fácil</option><option value="1">Médio</option><option value="2" selected>Difícil</option></select></label>
+<label>Dificuldade do robô<select id="df"><option value="0">Fácil</option><option value="1">Médio</option><option value="2" selected>Difícil</option><option value="3">Mestre (calcula e lê a mesa)</option></select></label>
 <label>Velocidade das jogadas<select id="sp"><option value="0">Manual (eu avanço)</option><option value="2600">Lenta</option><option value="1500" selected>Normal</option><option value="700">Rápida</option></select></label>
 <label>Sentido da mesa<select id="dir"><option value="1" selected>Anti-horário (padrão)</option><option value="3">Horário</option></select></label>
 <label>Saída<select id="opn"><option value="carreta" selected>Carreta: quem tem o 6-6 abre</option><option value="livre">Saída livre: sorteio e qualquer pedra</option></select></label>
@@ -48,6 +48,7 @@
 <div id="lr" class="lrw"><div class="lr" id="lrb"></div></div>
 <div id="rp" class="lrw"><div class="lr" id="rpb"></div></div>
 <div id="pf" class="lrw"><div class="lr" id="pfb"></div></div>
+<div id="fr" class="lrw"><div class="lr" id="frb"></div></div>
 <div id="tst" class="tst"></div>
 <div id="hpd" class="hpd"></div><div id="hps" class="hps"></div>
 <div id="iosi" class="modal"><div class="card"><h3>📲 Instalar no iPhone ou iPad</h3>
@@ -63,4 +64,7 @@
 <script src="5-efeitos.js"></script>
 <script src="6-online.js"></script>
 <script src="7-app.js"></script>
+<script src="8-analise.js"></script>
+<script src="9-conta.js"></script>
+<script src="10-amigos.js"></script>
 </body></html>
